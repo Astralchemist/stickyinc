@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.local
+
+# Tauri
+pane/node_modules/
+pane/dist/
+pane/src-tauri/target/
+pane/src-tauri/gen/
+
+# User data
+.stickyinc/

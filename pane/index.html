@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StickyInc</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="strip" aria-hidden="true">
+      <div id="strip-dot"></div>
+    </div>
+    <div id="pane">
+      <header>
+        <h1>Sticky<span>Inc</span></h1>
+        <span id="count"></span>
+      </header>
+      <ul id="tasks" aria-live="polite"></ul>
+
+      <section id="recent-section" hidden>
+        <h2>Recently done</h2>
+        <ul id="recent"></ul>
+      </section>
+
+      <details id="drawer" hidden>
+        <summary>
+          <span class="drawer-label">Archive</span>
+          <span id="archive-count" class="drawer-count">0</span>
+        </summary>
+        <ul id="archive"></ul>
+      </details>
+
+      <footer>
+        <span class="hint">Claude writes here. Tick to complete.</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

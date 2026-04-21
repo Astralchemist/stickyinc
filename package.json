@@ -1,0 +1,36 @@
+{
+  "name": "stickyinc",
+  "version": "0.1.0",
+  "description": "A reification layer between LLM conversations and your commitments. MCP server + floating pane.",
+  "type": "module",
+  "bin": {
+    "stickyinc-mcp": "./dist/index.js",
+    "stickyinc-auth": "./dist/auth-cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc && chmod +x dist/index.js dist/auth-cli.js",
+    "start": "node dist/index.js",
+    "auth": "tsx src/auth-cli.ts",
+    "stickyinc-auth": "tsx src/auth-cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "better-sqlite3": "^11.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3"]
+  }
+}
