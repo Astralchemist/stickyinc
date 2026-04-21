@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StickyInc — A reification layer between your chats and your commitments</title>
+    <meta name="description" content="A floating pane + MCP server. The decisions you make in chat don't evaporate — they stick to your screen. Free, open source, works with Claude, OpenRouter, OpenAI." />
+    <meta property="og:title" content="StickyInc" />
+    <meta property="og:description" content="Your chats evaporate. This sticks." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/png" href="./icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="hero">
+      <p class="eyebrow" aria-hidden="true">stickyinc</p>
+
+      <h1>
+        Your chats evaporate.<br />
+        <span class="hero-b">This sticks.</span>
+      </h1>
+
+      <p class="lede">
+        A floating pane plus an MCP server. The things you decide in a chat
+        — <em>call the dentist, email Sarah, schedule the review</em> —
+        don't vanish when the tab closes. They land on the side of your screen and
+        wait until you tick them off.
+      </p>
+
+      <div class="cta-row">
+        <a class="cta primary" href="https://github.com/Astralchemist/stickyinc/releases">
+          Get on GitHub
+        </a>
+        <a class="cta ghost" href="#how">How it works</a>
+      </div>
+
+      <p class="sub">
+        Free. Open source. MIT. BYO key. Works with Claude, OpenRouter, OpenAI,
+        or any OpenAI-compatible endpoint.
+      </p>
+    </main>
+
+    <section id="how" class="how" aria-labelledby="how-title">
+      <h2 class="section-title" id="how-title">Three small moves.</h2>
+
+      <ol class="steps">
+        <li class="step">
+          <span class="step-n">01</span>
+          <h3>Claude writes it.</h3>
+          <p>
+            In any Claude Code or Claude Desktop session, say
+            "<em>I need to call the dentist Friday</em>."
+            Claude calls StickyInc's MCP. A new checkbox appears in your pane
+            before you finish reading its reply.
+          </p>
+        </li>
+        <li class="step">
+          <span class="step-n">02</span>
+          <h3>You tick it.</h3>
+          <p>
+            Hover the strip on the right edge of your screen. The pane slides
+            out. Click to complete — the task strikes through, then drops into
+            a quiet archive for tomorrow-you. The line Claude saw next turn
+            says <em>"user completed: call the dentist."</em>
+          </p>
+        </li>
+        <li class="step">
+          <span class="step-n">03</span>
+          <h3>Calendar gets it.</h3>
+          <p>
+            Dated items forward to Google Calendar through
+            Claude's own connector. StickyInc doesn't run its own OAuth flow
+            — one less thing to set up, one less place your tokens live.
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="why">
+      <h2 class="section-title">Why it exists.</h2>
+      <p class="body-wide">
+        Every other AI overlay is summon-ask-dismiss. You open a floating window,
+        ask a thing, close it, and within an hour the answer has evaporated from
+        your brain and the tab.
+      </p>
+      <p class="body-wide">
+        StickyInc is the inverse. The pane doesn't disappear. It
+        <em>accumulates</em>. The chat is cheap; the commitment graph you build
+        from it over months is what's actually valuable. That graph lives on
+        your machine, in a SQLite file, under your control — not on anyone's
+        server.
+      </p>
+      <p class="body-wide">
+        Swap Claude for GPT tomorrow. Your pane is still there.
+      </p>
+    </section>
+
+    <section class="links-row" aria-label="Resources">
+      <a href="https://github.com/Astralchemist/stickyinc">github</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/Astralchemist/stickyinc#readme">docs</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/Astralchemist/stickyinc/blob/main/LICENSE">mit license</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/Astralchemist/stickyinc/blob/main/SIGNING.md">signing</a>
+    </section>
+
+    <footer class="ground" aria-label="StickyInc wordmark">
+      <h2 class="wordmark" aria-label="stickyinc">
+        st<span class="i-letter">ı<span class="tittle"></span></span>cky<span class="i-letter">ı<span class="tittle"></span></span>nc
+      </h2>
+    </footer>
+
+    <!-- the real thing: a mini floating pane, pinned to the right of the page -->
+    <aside class="demo-strip" aria-label="StickyInc pane demo — hover to expand">
+      <div class="demo-hit"></div>
+      <div class="demo-dot" id="demo-dot"></div>
+      <section class="demo-pane">
+        <header>
+          <span class="demo-title">sticky<span class="demo-title-muted">inc</span></span>
+          <span class="demo-count" id="demo-count">2 open</span>
+        </header>
+        <ul id="demo-tasks">
+          <li class="demo-task"><span class="demo-check"></span><span class="demo-text">Your chats evaporate.</span></li>
+          <li class="demo-task"><span class="demo-check"></span><span class="demo-text">This sticks.</span></li>
+        </ul>
+        <footer>
+          <span class="demo-hint">Click to tick. This is the real pane.</span>
+        </footer>
+      </section>
+    </aside>
+
+    <script src="./demo.js" defer></script>
+  </body>
+</html>
