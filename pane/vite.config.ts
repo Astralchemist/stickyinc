@@ -16,6 +16,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         quickadd: resolve(__dirname, "quickadd.html"),
+        wizard: resolve(__dirname, "wizard.html"),
       },
     },
   },

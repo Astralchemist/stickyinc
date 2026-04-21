@@ -2,11 +2,19 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
+mod wizard;
+
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
+
+use crate::wizard::{
+    open_wizard, open_wizard_window, setup_is_complete, wizard_close, wizard_diff_claude_json,
+    wizard_mark_complete, wizard_read_llm_config, wizard_register_mcp, wizard_save_llm_config,
+    wizard_set_watcher_enabled, wizard_validate_llm_key,
+};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Task {
@@ -297,6 +305,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(Mutex::new(DbPath(path.clone())))
+        .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -322,7 +331,16 @@ pub fn run() {
             list_archived_done,
             complete_task,
             add_task_quickadd,
-            close_quickadd
+            close_quickadd,
+            open_wizard,
+            wizard_close,
+            wizard_diff_claude_json,
+            wizard_register_mcp,
+            wizard_read_llm_config,
+            wizard_save_llm_config,
+            wizard_validate_llm_key,
+            wizard_set_watcher_enabled,
+            wizard_mark_complete
         ])
         .setup(move |app| {
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -336,6 +354,15 @@ pub fn run() {
                 Some(Modifiers::CONTROL | Modifiers::SHIFT),
                 Code::KeyN,
             ));
+
+            // First-run: open the setup wizard automatically.
+            if !setup_is_complete() {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(600));
+                    let _ = open_wizard_window(&handle);
+                });
+            }
 
             let handle = app.handle().clone();
             let watch_path = path.clone();

@@ -27,7 +27,7 @@ The pane is a pure view + interaction layer. Claude never talks to the pane dire
 | `list_tasks` | Return open tasks; silently appends "Done today (N)" so the next turn knows the state. |
 | `list_done` | Return recently completed tasks, with optional archive. |
 | `complete_task` | Mark a task done. |
-| `schedule_event` | Create a local dated task *and* a Google Calendar event (if configured). |
+| `schedule_event` | Create a dated local task. (Calendar sync is deferred to Claude's own connector — see below.) |
 
 ## Passive extraction (v0.4)
 
@@ -50,40 +50,27 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 
 Inline dates work: `buy bread due:2026-04-25` schedules it. For anything fancier, use `add_task_natural` from Claude.
 
-## v0.1 — MCP server only
+## First time use — one click
+
+Download the installer for your OS from the [latest release](https://github.com/Astralchemist/stickyinc/releases), open it, and follow the on-screen setup wizard.
+
+The wizard:
+
+1. **Pick your LLM** — Claude (direct), Claude via OpenRouter (cheapest), GPT, or any OpenAI-compatible URL. Paste key.
+2. **Validates the key** with a 1-token ping so you find out now, not later.
+3. **Registers with Claude Code** — previews the exact JSON block it's about to add to `~/.claude.json` and asks for confirmation. No silent writes, no terminal commands.
+4. **Optionally** turns on passive commitment extraction.
+
+Setup finishes in under a minute. You can re-run the wizard any time from the `setup` link in the pane footer.
+
+## Dev (running from source)
 
 ```bash
 cd ~/stickyinc
 pnpm install
-pnpm dev
-```
-
-### Connect from Claude Code
-
-Add to `~/.claude.json` or project-scoped config:
-
-```json
-{
-  "mcpServers": {
-    "stickyinc": {
-      "command": "node",
-      "args": ["/home/botadmin/stickyinc/dist/index.js"]
-    }
-  }
-}
-```
-
-Or during dev:
-
-```json
-{
-  "mcpServers": {
-    "stickyinc": {
-      "command": "tsx",
-      "args": ["/home/botadmin/stickyinc/src/index.ts"]
-    }
-  }
-}
+pnpm dev          # MCP server (stdio)
+# in another terminal:
+cd pane && pnpm tauri:dev
 ```
 
 ## LLM providers
@@ -115,24 +102,15 @@ You can also override the model for any env-var path with `STICKYINC_MODEL=…`.
 
 **Why OpenRouter?** One credit card, access to Claude / GPT / Gemini / Llama / Mistral / DeepSeek side-by-side. Switch model without code changes. Often 30–50% cheaper than going direct for the same model. Good default for indie users who want "more for less."
 
-## Google Calendar setup (optional)
+## Calendar — by design, we defer to Claude
 
-`schedule_event` works without this — it'll save a dated task locally. To create real Google Calendar events, one-time setup:
+StickyInc intentionally doesn't ship its own Google OAuth flow. It's the single
+hardest setup step in the entire product surface, and Claude Desktop already
+has a battle-tested Google Calendar connector built in.
 
-1. Open [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials).
-2. Enable the **Google Calendar API** for your project.
-3. Create an **OAuth 2.0 Client ID**, type **Desktop app**.
-4. Save the `client_id` and `client_secret` to `~/.stickyinc/google.json`:
-   ```json
-   { "client_id": "XXX.apps.googleusercontent.com", "client_secret": "YYY" }
-   ```
-5. Run the auth flow:
-   ```bash
-   cd ~/stickyinc && pnpm auth
-   ```
-   It prints a URL. Open it, grant access, and the local callback captures tokens. Tokens are saved back to the same file (mode `0600`). Refresh is automatic.
-
-To use a non-primary calendar, add `"calendar_id": "..."` to the file.
+So: when you want a real calendar event, ask Claude in the same turn. `schedule_event`
+stores the dated task in StickyInc; Claude creates the calendar entry via its own
+connector. One less thing for you to set up, one less token to leak.
 
 ## Design decisions
 

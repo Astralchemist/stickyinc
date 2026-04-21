@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StickyInc — Setup</title>
+    <link rel="stylesheet" href="/src/wizard.css" />
+  </head>
+  <body>
+    <main id="wizard">
+      <!-- step 1: welcome -->
+      <section class="step" data-step="welcome">
+        <p class="eyebrow">stickyinc</p>
+        <h1>Hi.</h1>
+        <p class="lede">
+          StickyInc makes the things you decide in chat actually stick.<br />
+          Four quick choices. Takes a minute.
+        </p>
+        <div class="actions end">
+          <button class="primary" data-go="provider">Begin →</button>
+        </div>
+      </section>
+
+      <!-- step 2: LLM provider + key -->
+      <section class="step" data-step="provider" hidden>
+        <h2>Who writes your checkboxes?</h2>
+        <p class="muted">Pick any LLM. You can change this later.</p>
+
+        <fieldset class="radios">
+          <label><input type="radio" name="provider" value="anthropic" checked /> <span>Claude<em>direct from Anthropic</em></span></label>
+          <label><input type="radio" name="provider" value="openrouter" /> <span>Claude, cheaper<em>via OpenRouter</em></span></label>
+          <label><input type="radio" name="provider" value="openai" /> <span>GPT<em>OpenAI</em></span></label>
+          <label><input type="radio" name="provider" value="compat" /> <span>Something else<em>OpenAI-compatible URL</em></span></label>
+        </fieldset>
+
+        <label class="field">
+          <span class="field-label">Paste your key</span>
+          <input id="llm-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-..." />
+        </label>
+
+        <label class="field" data-field="baseUrl" hidden>
+          <span class="field-label">Base URL</span>
+          <input id="llm-base-url" type="text" placeholder="http://localhost:11434/v1" />
+        </label>
+
+        <label class="field" data-field="model" hidden>
+          <span class="field-label">Model</span>
+          <input id="llm-model" type="text" placeholder="claude-haiku-4-5-20251001" />
+        </label>
+
+        <p class="provider-note" id="provider-note">
+          No key? <a href="#" data-link="https://openrouter.ai/keys">Get one free from OpenRouter →</a>
+        </p>
+
+        <div id="validate-out" class="validate" hidden></div>
+
+        <div class="actions between">
+          <button class="ghost" data-go="welcome">← Back</button>
+          <button class="primary" id="validate-next">Validate &amp; continue →</button>
+        </div>
+      </section>
+
+      <!-- step 3: register with Claude Code (diff preview) -->
+      <section class="step" data-step="claude" hidden>
+        <h2>Let Claude write to StickyInc.</h2>
+        <p class="muted">We'll add a tiny entry to your Claude Code config so Claude can see StickyInc.</p>
+
+        <div class="diff-preview" id="claude-preview">
+          <div class="diff-head">
+            <span class="diff-file">~/.claude.json</span>
+            <span class="diff-state" id="claude-state">Loading…</span>
+          </div>
+          <pre id="claude-diff"></pre>
+        </div>
+
+        <div id="claude-conflict" class="conflict" hidden>
+          <p class="muted">An entry named <code>stickyinc</code> already exists with different values. What should we do?</p>
+          <div class="actions between">
+            <button class="ghost" data-resolve="skip">Skip (keep existing)</button>
+            <button class="ghost" data-resolve="edit">Edit their values</button>
+            <button class="primary" data-resolve="replace">Replace</button>
+          </div>
+        </div>
+
+        <div class="actions between" id="claude-actions">
+          <button class="ghost" data-go="provider">← Back</button>
+          <button class="primary" id="claude-confirm">Add this entry</button>
+        </div>
+      </section>
+
+      <!-- step 4: passive watcher toggle -->
+      <section class="step" data-step="watcher" hidden>
+        <h2>Passively extract commitments?</h2>
+        <p class="muted">
+          Optional. StickyInc will tail Claude transcripts in the background and
+          silently surface todos you mention in passing.
+        </p>
+        <p class="warning">
+          Every watched message is sent to your LLM. You can turn this off any time
+          from the pane menu.
+        </p>
+
+        <div class="actions between">
+          <button class="ghost" data-go="claude">← Back</button>
+          <div class="action-pair">
+            <button class="ghost" data-watcher="off">Not now</button>
+            <button class="primary" data-watcher="on">Turn on</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- step 5: done -->
+      <section class="step" data-step="done" hidden>
+        <h1>That's it.</h1>
+        <p class="lede">
+          Pin this strip anywhere on your screen.<br />
+          Hover to open. Tick when done.
+        </p>
+        <div class="actions end">
+          <button class="primary" id="finish">Let's go →</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- progress dots -->
+    <footer id="dots" aria-hidden="true">
+      <span class="dot" data-dot="welcome"></span>
+      <span class="dot" data-dot="provider"></span>
+      <span class="dot" data-dot="claude"></span>
+      <span class="dot" data-dot="watcher"></span>
+      <span class="dot" data-dot="done"></span>
+    </footer>
+
+    <script type="module" src="/src/wizard.ts"></script>
+  </body>
+</html>

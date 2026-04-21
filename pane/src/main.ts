@@ -177,6 +177,10 @@ async function bootstrap(): Promise<void> {
     if (!(e.relatedTarget as Element)?.closest?.("#pane")) collapse();
   });
 
+  document.getElementById("setup-link")?.addEventListener("click", () => {
+    void invoke("open_wizard");
+  });
+
   await refresh();
 
   await listen("tasks-changed", () => refresh());

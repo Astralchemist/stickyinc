@@ -68,7 +68,7 @@ try {
     arguments: { text: "Call the dentist" },
   }));
 
-  show("schedule_event", await send("tools/call", {
+  show("schedule_event (local only)", await send("tools/call", {
     name: "schedule_event",
     arguments: { title: "Design review", start: "2026-04-23T10:00:00Z", end: "2026-04-23T11:00:00Z" },
   }));
