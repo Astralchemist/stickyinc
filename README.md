@@ -24,10 +24,31 @@ The pane is a pure view + interaction layer. Claude never talks to the pane dire
 |---|---|
 | `add_task` | Add a todo. Optional `due_at` (ISO date). |
 | `add_task_natural` | Parse free text ("call dentist Friday 3pm") into a task via the configured LLM. |
-| `list_tasks` | Return open tasks, optionally filtered. |
+| `list_tasks` | Return open tasks; silently appends "Done today (N)" so the next turn knows the state. |
 | `list_done` | Return recently completed tasks, with optional archive. |
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a local dated task *and* a Google Calendar event (if configured). |
+
+## Passive extraction (v0.4)
+
+Opt-in daemon that watches your Claude Code transcripts and auto-surfaces commitments you mention in passing.
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+cd ~/stickyinc && pnpm watch
+```
+
+- Tails `~/.claude/projects/**/*.jsonl` (Claude Code session files).
+- For each new **user** turn (add `--assistant` to include Claude's turns too), calls the configured LLM to extract commitments.
+- De-duplicates via content fingerprint — "call the dentist" won't insert twice if the task is still open.
+- Ignores hypotheticals and past tense. Empty extractions are free (no DB write).
+- **Privacy**: every watched turn is sent to your configured LLM provider. The watcher doesn't run by default; you decide when to turn it on.
+
+## Quick-add hotkey (v0.5)
+
+While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A small centered input appears — type, hit Enter, done.
+
+Inline dates work: `buy bread due:2026-04-25` schedules it. For anything fancier, use `add_task_natural` from Claude.
 
 ## v0.1 — MCP server only
 
@@ -151,8 +172,9 @@ macOS and Windows builds need only Rust + Node. Ship to those via CI.
 
 - [x] v0.1 — MCP server, SQLite, four tools.
 - [x] v0.2 — Tauri edge-strip pane.
-- [x] v0.3 — Google Calendar connector (real `create_event`), Recently-done section, Archive drawer, `list_done` MCP tool, GitHub Actions CI (macOS + Windows + Linux), `LLMProvider` layer with Anthropic + OpenRouter + OpenAI-compatible backends, `add_task_natural` tool.
-- [ ] v0.4 — Passive extraction (watch Claude turns, auto-surface commitments), done-today feedback loop.
+- [x] v0.3 — Google Calendar, Recently-done + Archive drawer, `list_done` tool, GitHub Actions CI, `LLMProvider` (Anthropic + OpenRouter + OpenAI-compat), `add_task_natural`.
+- [x] v0.4 — Passive extraction daemon (`pnpm watch`), fingerprint dedup, done-today feedback in `list_tasks`.
+- [x] v0.5 — Global hotkey ⌘⇧N quick-add window, full icon set (macOS/Windows/Linux/iOS/Android), CI signing hooks (see [`SIGNING.md`](./SIGNING.md)).
 - [ ] v0.5 — Menu-bar quick-add (⌘⇧N), icon set, signed/notarized macOS + Windows installers via CI.
 
 ## License

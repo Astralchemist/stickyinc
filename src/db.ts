@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -19,14 +20,31 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     completed_at TEXT,
     due_at TEXT,
-    source TEXT NOT NULL DEFAULT 'claude'
+    source TEXT NOT NULL DEFAULT 'claude',
+    fingerprint TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed_at);
   CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
+  CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint);
 `);
 
+// Migration: add fingerprint column to pre-v0.4 databases
+const cols = db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[];
+if (!cols.some((c) => c.name === "fingerprint")) {
+  db.exec(`ALTER TABLE tasks ADD COLUMN fingerprint TEXT`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint)`);
+}
+
 const insertTaskStmt = db.prepare(
-  `INSERT INTO tasks (text, due_at, source) VALUES (?, ?, ?) RETURNING *`
+  `INSERT INTO tasks (text, due_at, source, fingerprint) VALUES (?, ?, ?, ?) RETURNING *`
+);
+
+const findOpenByFingerprintStmt = db.prepare(
+  `SELECT * FROM tasks WHERE fingerprint = ? AND completed_at IS NULL LIMIT 1`
+);
+
+const countDoneTodayStmt = db.prepare(
+  `SELECT COUNT(*) as n FROM tasks WHERE completed_at IS NOT NULL AND date(completed_at) = date('now')`
 );
 
 const selectOpenStmt = db.prepare(
@@ -59,12 +77,39 @@ const completeTaskStmt = db.prepare(
 
 const getTaskStmt = db.prepare(`SELECT * FROM tasks WHERE id = ?`);
 
+export function fingerprint(text: string): string {
+  return createHash("sha256")
+    .update(text.toLowerCase().replace(/\s+/g, " ").trim())
+    .digest("hex")
+    .slice(0, 16);
+}
+
 export function addTask(
   text: string,
   dueAt: string | null = null,
   source = "claude"
 ): Task {
-  return insertTaskStmt.get(text, dueAt, source) as Task;
+  return insertTaskStmt.get(text, dueAt, source, fingerprint(text)) as Task;
+}
+
+/**
+ * Insert only if no open task with the same fingerprint exists.
+ * Returns the new task, or the existing duplicate when skipped.
+ */
+export function addTaskUnique(
+  text: string,
+  dueAt: string | null = null,
+  source = "claude"
+): { task: Task; inserted: boolean } {
+  const fp = fingerprint(text);
+  const existing = findOpenByFingerprintStmt.get(fp) as Task | undefined;
+  if (existing) return { task: existing, inserted: false };
+  const task = insertTaskStmt.get(text, dueAt, source, fp) as Task;
+  return { task, inserted: true };
+}
+
+export function countDoneToday(): number {
+  return (countDoneTodayStmt.get() as { n: number }).n;
 }
 
 export function listOpenTasks(): Task[] {

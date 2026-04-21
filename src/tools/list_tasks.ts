@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { listAllTasks, listOpenTasks } from "../db.js";
+import { countDoneToday, listAllTasks, listOpenTasks } from "../db.js";
 
 export const listTasksSchema = {
   include_completed: z
@@ -34,6 +34,14 @@ export async function handleListTasks(args: {
     const due = t.due_at ? ` — due ${t.due_at}` : "";
     return `${mark} #${t.id} ${t.text}${due}`;
   });
+
+  // Done-today feedback: silently surface what the user has already finished
+  // today so Claude's next turn knows the state without being told.
+  const doneToday = countDoneToday();
+  if (doneToday > 0) {
+    lines.push("");
+    lines.push(`(Done today: ${doneToday})`);
+  }
 
   return {
     content: [{ type: "text" as const, text: lines.join("\n") }],
