@@ -78,19 +78,12 @@ jobs:
         working-directory: pane
         run: pnpm install --frozen-lockfile
 
+      # Signing env is intentionally absent here — see SIGNING.md.
+      # tauri-action treats empty APPLE_CERTIFICATE as "try to sign" and fails
+      # importing an empty cert, so we only wire them in after you add secrets.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Tauri updater signing (optional — set TAURI_SIGNING_PRIVATE_KEY to enable auto-updates).
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code signing + notarization (optional — see SIGNING.md).
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: pane
           args: --target ${{ matrix.target }}
