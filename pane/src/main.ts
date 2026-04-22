@@ -12,9 +12,17 @@ interface Task {
   source: string;
 }
 
+type Mode = "hidden" | "strip" | "bulge" | "expanded";
+
+const HIDDEN_W = 1;
 const STRIP_W = 8;
+const BULGE_W = 240;
 const PANE_W = 320;
 const PANE_H_FRAC = 1.0;
+
+const BULGE_HOLD_MS = 3500;
+const BULGE_COOLDOWN_MS = 30_000;
+const DUE_POLL_MS = 30_000;
 
 const body = document.body;
 const tasksEl = document.getElementById("tasks") as HTMLUListElement;
@@ -24,8 +32,19 @@ const recentEl = document.getElementById("recent") as HTMLUListElement;
 const drawerEl = document.getElementById("drawer") as HTMLDetailsElement;
 const archiveEl = document.getElementById("archive") as HTMLUListElement;
 const archiveCountEl = document.getElementById("archive-count") as HTMLSpanElement;
+const bulgeEl = document.getElementById("bulge") as HTMLDivElement;
+const bulgeTextEl = document.getElementById("bulge-text") as HTMLSpanElement;
+const bulgeIconEl = document.getElementById("bulge-icon") as HTMLSpanElement;
 
-async function positionWindow(expanded: boolean): Promise<void> {
+let currentMode: Mode = "strip";
+let setupComplete = false;
+let lastBulgeAt = 0;
+let bulgeTimer: number | null = null;
+let knownTaskIds: Set<number> | null = null;
+let lastDueCheck = Date.now();
+let seededSetupBulge = false;
+
+async function positionWindow(width: number): Promise<void> {
   const w = getCurrentWindow();
   const mon = await currentMonitor();
   if (!mon) return;
@@ -33,9 +52,40 @@ async function positionWindow(expanded: boolean): Promise<void> {
   const screenW = mon.size.width / scale;
   const screenH = mon.size.height / scale;
   const paneH = Math.round(screenH * PANE_H_FRAC);
-  const width = expanded ? PANE_W : STRIP_W;
   await w.setSize(new LogicalSize(width, paneH));
   await w.setPosition(new LogicalPosition(Math.round(screenW - width), 0));
+}
+
+function modeWidth(mode: Mode): number {
+  switch (mode) {
+    case "hidden": return HIDDEN_W;
+    case "strip":  return STRIP_W;
+    case "bulge":  return BULGE_W;
+    case "expanded": return PANE_W;
+  }
+}
+
+async function setMode(mode: Mode): Promise<void> {
+  if (mode === currentMode) return;
+  // Grow the window BEFORE the class swap so content has room; shrink AFTER
+  // the class swap so the retract animation plays in-frame.
+  const growing = modeWidth(mode) > modeWidth(currentMode);
+  if (growing) {
+    await positionWindow(modeWidth(mode));
+    body.className = mode;
+  } else {
+    body.className = mode;
+    // CSS transition is ~260ms; resize after it completes.
+    setTimeout(() => {
+      void positionWindow(modeWidth(mode));
+    }, 260);
+  }
+  currentMode = mode;
+}
+
+/** Base mode when no bulge / hover is active — strip if set up, else hidden. */
+function restingMode(): Mode {
+  return setupComplete ? "strip" : "hidden";
 }
 
 function isOverdue(dueAt: string): boolean {
@@ -124,6 +174,77 @@ function renderDoneList(target: HTMLUListElement, tasks: Task[]): void {
   }
 }
 
+/** Truncate for the bulge pill — small space. */
+function clip(s: string, n = 38): string {
+  return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+}
+
+async function showBulge(
+  text: string,
+  opts: { icon?: string; onClick?: () => void } = {},
+): Promise<void> {
+  const now = Date.now();
+  // Don't interrupt a hovered user.
+  if (currentMode === "expanded") return;
+  if (now - lastBulgeAt < BULGE_COOLDOWN_MS) return;
+  lastBulgeAt = now;
+
+  bulgeTextEl.textContent = text;
+  bulgeIconEl.textContent = opts.icon ?? "•";
+  bulgeEl.classList.toggle("clickable", Boolean(opts.onClick));
+  bulgeEl.onclick = opts.onClick ?? null;
+
+  await setMode("bulge");
+  if (bulgeTimer) clearTimeout(bulgeTimer);
+  bulgeTimer = window.setTimeout(async () => {
+    await setMode(restingMode());
+  }, BULGE_HOLD_MS);
+}
+
+/**
+ * Detect the three notification triggers by diffing successive refreshes:
+ *   - a new task appeared (source ≠ quickadd → Claude put it there)
+ *   - a task's due_at crossed "now" since the last check
+ *
+ * First refresh seeds knownTaskIds without bulging, so we don't flash the
+ * user for every task the app already knew about on launch.
+ */
+function detectBulges(tasks: Task[]): void {
+  if (!setupComplete) return;
+
+  if (knownTaskIds === null) {
+    knownTaskIds = new Set(tasks.map((t) => t.id));
+    return;
+  }
+
+  const currentIds = new Set(tasks.map((t) => t.id));
+  const fresh = tasks.filter((t) => !knownTaskIds!.has(t.id));
+  knownTaskIds = currentIds;
+
+  // Only surface tasks that the user didn't type themselves via quick-add.
+  const notable = fresh.find((t) => t.source !== "quickadd");
+  if (notable) {
+    const verb = notable.source === "passive-extract" ? "overheard" : "added";
+    void showBulge(`Claude ${verb}: ${clip(notable.text)}`, { icon: "+" });
+  }
+}
+
+async function checkDueCrossings(): Promise<void> {
+  if (!setupComplete) return;
+  const tasks = await invoke<Task[]>("list_open_tasks").catch(() => null);
+  if (!tasks) return;
+  const now = Date.now();
+  for (const t of tasks) {
+    if (!t.due_at) continue;
+    const due = new Date(t.due_at).getTime();
+    if (due > lastDueCheck && due <= now) {
+      void showBulge(`Due now: ${clip(t.text)}`, { icon: "!" });
+      break; // one bulge per tick even if multiple fired together
+    }
+  }
+  lastDueCheck = now;
+}
+
 async function refresh(): Promise<void> {
   try {
     const [open, recent, archived] = await Promise.all([
@@ -133,6 +254,7 @@ async function refresh(): Promise<void> {
     ]);
 
     renderOpen(open);
+    detectBulges(open);
 
     recentSection.hidden = recent.length === 0;
     renderDoneList(recentEl, recent);
@@ -149,31 +271,44 @@ let expandTimer: number | null = null;
 let collapseTimer: number | null = null;
 
 function expand(): void {
+  if (!setupComplete) return; // no hover-to-expand if the pane is hidden
   if (collapseTimer) { clearTimeout(collapseTimer); collapseTimer = null; }
-  if (body.classList.contains("expanded")) return;
+  if (currentMode === "expanded") return;
   expandTimer = window.setTimeout(async () => {
-    await positionWindow(true);
-    body.classList.add("expanded");
+    if (bulgeTimer) { clearTimeout(bulgeTimer); bulgeTimer = null; }
+    await setMode("expanded");
   }, 120);
 }
 
 function collapse(): void {
   if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
-  if (!body.classList.contains("expanded")) return;
+  if (currentMode !== "expanded") return;
   collapseTimer = window.setTimeout(async () => {
-    body.classList.remove("expanded");
-    setTimeout(() => positionWindow(false), 220);
+    await setMode(restingMode());
   }, 400);
 }
 
 async function bootstrap(): Promise<void> {
-  await positionWindow(false);
+  setupComplete = await invoke<boolean>("get_setup_complete").catch(() => false);
+  await setMode(restingMode());
+
+  // If setup is incomplete, nudge the user back to the wizard once per
+  // launch. The first launch also auto-opens the wizard from Rust, so this
+  // is for cases where they closed it without finishing.
+  if (!setupComplete && !seededSetupBulge) {
+    seededSetupBulge = true;
+    setTimeout(() => {
+      void showBulge("Finish StickyInc setup →", {
+        icon: "↗",
+        onClick: () => void invoke("open_wizard"),
+      });
+    }, 8_000);
+  }
 
   document.getElementById("strip")?.addEventListener("mouseenter", expand);
   document.getElementById("pane")?.addEventListener("mouseenter", expand);
   document.getElementById("pane")?.addEventListener("mouseleave", collapse);
   document.getElementById("strip")?.addEventListener("mouseleave", (e) => {
-    // only collapse if not moving onto pane
     if (!(e.relatedTarget as Element)?.closest?.("#pane")) collapse();
   });
 
@@ -184,9 +319,16 @@ async function bootstrap(): Promise<void> {
   await refresh();
 
   await listen("tasks-changed", () => refresh());
+  await listen("setup-complete", async () => {
+    setupComplete = true;
+    // User just finished the wizard — flip into strip mode and stop hiding.
+    if (currentMode === "hidden") {
+      await setMode("strip");
+    }
+  });
 
-  // Poll fallback every 3s in case watcher hiccups
   setInterval(refresh, 3000);
+  setInterval(() => { void checkDueCrossings(); }, DUE_POLL_MS);
 }
 
 bootstrap();

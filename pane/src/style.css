@@ -26,7 +26,7 @@ html, body {
   -webkit-user-select: none;
 }
 
-/* Edge strip — always visible, subtle */
+/* Edge strip — visible while body.strip or body.expanded; suppressed otherwise. */
 #strip {
   position: fixed;
   top: 0;
@@ -34,8 +34,15 @@ html, body {
   width: var(--strip-w);
   height: 100vh;
   background: linear-gradient(to left, rgba(80, 80, 90, 0.35), rgba(80, 80, 90, 0));
-  transition: background 160ms ease, width 200ms ease;
+  transition: background 160ms ease, opacity 180ms ease;
   cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+body.strip #strip,
+body.expanded #strip {
+  opacity: 1;
+  pointer-events: auto;
 }
 #strip:hover {
   background: linear-gradient(to left, rgba(120, 120, 140, 0.6), rgba(120, 120, 140, 0.05));
@@ -55,7 +62,63 @@ html, body {
   box-shadow: 0 0 6px var(--accent);
   transition: opacity 180ms ease;
 }
-body.has-due #strip-dot { opacity: 1; }
+body.strip.has-due #strip-dot,
+body.expanded.has-due #strip-dot { opacity: 1; }
+
+/* Bulge — a small pill that extends from the edge for 3.5s when something
+   notification-worthy happens (setup needed, Claude added a task, due
+   crossed). Invisible except in body.bulge. */
+#bulge {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translate(100%, -50%);
+  max-width: 220px;
+  padding: 9px 14px 9px 12px;
+  background: rgba(24, 24, 28, 0.96);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-right: none;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  box-shadow: -10px 0 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0;
+  transition:
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 220ms ease;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.bulge #bulge {
+  transform: translate(0, -50%);
+  opacity: 1;
+}
+#bulge.clickable { cursor: pointer; pointer-events: auto; }
+body.bulge #bulge.clickable { pointer-events: auto; }
+#bulge-icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+#bulge-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Pane — hidden by default, revealed when expanded */
 #pane {

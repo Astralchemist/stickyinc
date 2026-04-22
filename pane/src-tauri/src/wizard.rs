@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 fn stickyinc_dir() -> PathBuf {
     let mut p = dirs::home_dir().expect("no home dir");
@@ -298,16 +298,17 @@ pub fn wizard_set_watcher_enabled(enabled: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn wizard_mark_complete() -> Result<(), String> {
+pub fn wizard_mark_complete(app: tauri::AppHandle) -> Result<(), String> {
     let mut cfg = read_json(&setup_sentinel_path());
     if !cfg.is_object() {
         cfg = serde_json::json!({});
     }
-    cfg["completed_at"] = serde_json::Value::String(
-        chrono_like_now(),
-    );
+    cfg["completed_at"] = serde_json::Value::String(chrono_like_now());
     cfg["version"] = serde_json::json!("0.5.0");
-    write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())
+    write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
+    // Tell the main pane window to flip out of hidden/bulge mode and show the strip.
+    let _ = app.emit("setup-complete", ());
+    Ok(())
 }
 
 fn chrono_like_now() -> String {

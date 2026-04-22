@@ -297,6 +297,11 @@ fn close_quickadd(window: tauri::Window) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_setup_complete() -> bool {
+    setup_is_complete()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let path = db_path();
@@ -332,6 +337,7 @@ pub fn run() {
             complete_task,
             add_task_quickadd,
             close_quickadd,
+            get_setup_complete,
             open_wizard,
             wizard_close,
             wizard_diff_claude_json,
