@@ -305,21 +305,48 @@ macOS and Windows need only Rust + Node. Release builds run through GitHub Actio
 ## Roadmap
 
 ```
-  [x] v0.1   MCP server, SQLite, four tools.
-  [x] v0.2   Tauri edge-strip pane.
-  [x] v0.3   Recently-done + Archive drawer, list_done, CI,
-             LLMProvider (Anthropic + OpenRouter + OpenAI-compat),
-             add_task_natural.
-  [x] v0.4   Passive extraction daemon, fingerprint dedup,
-             done-today feedback in list_tasks.
-  [x] v0.5   Global ⌘⇧N quick-add window, full icon set,
-             one-click setup wizard, tagged release builds
-             for macOS / Windows / Linux.
-  [ ] v0.6   Signed + notarized macOS installer, signed MSI
-             on Windows (see SIGNING.md), auto-updater,
-             menu-bar quick-add.
-  [ ] v0.7   Per-project tasks (separate DBs per Claude Code
-             workspace), weekly digest.
+  [x] v0.1     MCP server, SQLite, four tools.
+  [x] v0.2     Tauri edge-strip pane.
+  [x] v0.3     Recently-done + Archive drawer, list_done, CI,
+               LLMProvider (Anthropic + OpenRouter + OpenAI-compat),
+               add_task_natural.
+  [x] v0.4     Passive extraction daemon, fingerprint dedup,
+               done-today feedback in list_tasks.
+  [x] v0.5     Global ⌘⇧N quick-add window, full icon set,
+               one-click setup wizard, tagged release builds
+               for macOS / Windows / Linux.
+  [x] v0.5.1   Subscription-mode providers (Claude Code, Codex,
+               Gemini, Ollama/LM Studio) with zero-key auto-detect.
+               Sidebar hidden until setup is done — subtle bulge
+               notifications for new tasks, due crossings, and
+               incomplete setup.
+
+  [ ] v0.6     ▸ in-app auto-updater (check + download + install
+                 signed bundles on launch; users never miss a fix)
+               ▸ wizard reworked to detect claude / codex / gemini
+                 CLIs and offer zero-key "use my subscription" as
+                 the default; API key becomes the fallback, not
+                 the front door
+               ▸ signed + notarized macOS installer, signed MSI on
+                 Windows (see SIGNING.md)
+               ▸ UUID task IDs + append-only event log — unlocks
+                 multi-device sync, undo, and audit history. Done
+                 on desktop regardless of mobile, because the
+                 migration is scary later and free now.
+
+  [ ] v0.7     ▸ phone access without an app: desktop pane serves
+                 a read-only LAN web view over HTTPS — bookmark
+                 it on your phone, no store review, no sync engine
+               ▸ per-project tasks (separate DBs per Claude Code
+                 workspace), weekly digest, menu-bar quick-add
+
+  [ ] v0.8+    ▸ native mobile (Tauri 2 iOS + Android) — viewer,
+                 quickadd, share-sheet, voice capture via Siri /
+                 Assistant Shortcuts
+               ▸ LAN sync over mDNS + self-signed TLS + QR
+                 pairing (LocalSend-style). No relay, no backend.
+                 Filesystem sync (iCloud / Dropbox / Syncthing)
+                 remains the documented "away from home" path.
 ```
 
 ---
