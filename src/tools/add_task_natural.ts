@@ -53,8 +53,10 @@ async function parseTask(input: string): Promise<ParsedTask> {
   const provider = resolveLLMProvider();
   if (!provider) {
     throw new Error(
-      "No LLM configured. Set OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY, " +
-        "or create ~/.stickyinc/llm.json. See README 'LLM providers'."
+      "No LLM configured. Either (a) install Claude Code or the OpenAI Codex CLI and sign in — " +
+        "StickyInc will piggyback on your subscription automatically, or (b) set OPENROUTER_API_KEY, " +
+        "ANTHROPIC_API_KEY, or OPENAI_API_KEY, or create ~/.stickyinc/llm.json. " +
+        "See README 'LLM providers'."
     );
   }
 

@@ -26,7 +26,8 @@
 ```
 
 <p align="center">
-  <strong>v0.5.0</strong> · MIT · MCP-first · BYO LLM key · no backend, ever
+  <strong>v0.5.0</strong> · MIT · MCP-first · no backend, ever<br />
+  <em>Bring your own LLM key — or piggyback on your Claude Code / ChatGPT subscription. Zero config either way.</em>
 </p>
 
 <p align="center">
@@ -142,17 +143,43 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 
 `add_task_natural` and the passive extraction daemon work with any of:
 
-| Provider | Get a key | Env var | Default model |
+| Provider | How it authenticates | Detected via | Default model |
 |---|---|---|---|
-| **OpenRouter** — one key, ~200 models, cheapest per token | [openrouter.ai/keys](https://openrouter.ai/keys) | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-haiku` |
-| **Anthropic** (direct) | [console.anthropic.com](https://console.anthropic.com/) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
-| **OpenAI** (direct) | [platform.openai.com](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` | `gpt-4o-mini` |
-| **OpenAI-compatible** (Groq, Together, Fireworks, Ollama, vLLM…) | — | via config file | — |
+| **Claude Code** — your Claude Max / Pro subscription, *no API key* | local `claude` CLI OAuth | `claude` on `$PATH` | `haiku` |
+| **Codex (ChatGPT)** — your ChatGPT Plus / Pro / Team subscription, *no API key* | local `codex` CLI OAuth | `codex` on `$PATH` | whatever `codex` defaults to |
+| **OpenRouter** — one key, ~200 models, cheapest per token | API key | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-haiku` |
+| **Anthropic** (direct) | API key ([console.anthropic.com](https://console.anthropic.com/)) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
+| **OpenAI** (direct) | API key ([platform.openai.com](https://platform.openai.com/api-keys)) | `OPENAI_API_KEY` | `gpt-4o-mini` |
+| **OpenAI-compatible** (Groq, Together, Fireworks, Ollama, vLLM…) | API key | config file | — |
 
-**Zero-config path:** `export OPENROUTER_API_KEY=sk-or-...` and run.
+### Zero-config path
 
-**Config file path** — `~/.stickyinc/llm.json`:
+If you already have **Claude Code** or **OpenAI Codex CLI** installed and signed in, StickyInc uses that automatically — no key, no config file, no token costs on top of the subscription you already pay for. Each call shells out to `claude -p` / `codex exec` under the hood; expect ~1s of subprocess startup per parse, which is fine for quick-add and the daemon.
 
+Prefer an API key? `export OPENROUTER_API_KEY=sk-or-...` and run. Env-var providers take priority over subscription fallbacks.
+
+### Resolution priority
+
+```
+  1 · ~/.stickyinc/llm.json   (explicit provider wins)
+  2 · OPENROUTER_API_KEY
+  3 · ANTHROPIC_API_KEY
+  4 · OPENAI_API_KEY
+  5 · claude  CLI on PATH  →  Claude Code subscription
+  6 · codex   CLI on PATH  →  ChatGPT subscription (via Codex)
+```
+
+### Config file examples — `~/.stickyinc/llm.json`
+
+```json
+{ "provider": "claude-code" }
+```
+```json
+{ "provider": "claude-code", "model": "sonnet" }
+```
+```json
+{ "provider": "codex" }
+```
 ```json
 { "provider": "openrouter", "model": "openai/gpt-4.1-mini" }
 ```
@@ -163,7 +190,11 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 { "provider": "compat", "base_url": "http://localhost:11434/v1", "model": "llama3.2", "api_key": "ollama" }
 ```
 
-Override the model on any env-var path with `STICKYINC_MODEL=…`.
+Override the model on any env-var or auto-detect path with `STICKYINC_MODEL=…`.
+
+### A note on subscription-mode tradeoffs
+
+Both `claude-code` and `codex` providers run a subprocess per call (~500ms–1s of overhead) and share the user's subscription rate limits. For interactive quick-add and the once-per-turn passive daemon this is imperceptible; if you end up in a tight extraction loop, configure a direct API provider instead. Subscription routes also mean StickyInc never touches your auth tokens — they stay in whatever state directory the CLI manages (`~/.claude/`, `~/.codex/`).
 
 ---
 

@@ -10,7 +10,7 @@ import { listDoneSchema, handleListDone } from "./tools/list_done.js";
 
 const server = new McpServer({
   name: "stickyinc",
-  version: "0.1.0",
+  version: "0.5.0",
 });
 
 server.registerTool(

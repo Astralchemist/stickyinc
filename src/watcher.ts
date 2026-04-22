@@ -158,7 +158,9 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
   const provider = resolveLLMProvider();
   if (!provider) {
     console.error(
-      "No LLM configured. Set OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY, or create ~/.stickyinc/llm.json."
+      "No LLM configured. Either install Claude Code or the OpenAI Codex CLI and sign in " +
+        "(StickyInc will use your subscription automatically), or set OPENROUTER_API_KEY, " +
+        "ANTHROPIC_API_KEY, or OPENAI_API_KEY, or create ~/.stickyinc/llm.json.",
     );
     process.exit(1);
   }

@@ -3,6 +3,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { AnthropicProvider } from "./anthropic.js";
 import { OpenAICompatProvider } from "./openai.js";
+import { ClaudeCodeProvider, findClaudeBinary } from "./claude_code.js";
+import { CodexProvider, findCodexBinary } from "./codex.js";
 import type { LLMProvider } from "./types.js";
 
 export type { ChatMessage, ChatOptions, ChatResult, LLMProvider } from "./types.js";
@@ -10,7 +12,13 @@ export type { ChatMessage, ChatOptions, ChatResult, LLMProvider } from "./types.
 const CONFIG_PATH = join(homedir(), ".stickyinc", "llm.json");
 
 interface LLMConfig {
-  provider: "anthropic" | "openrouter" | "openai" | "compat";
+  provider:
+    | "anthropic"
+    | "openrouter"
+    | "openai"
+    | "compat"
+    | "claude-code"
+    | "codex";
   model?: string;
   api_key?: string;
   base_url?: string;
@@ -28,12 +36,15 @@ function readConfigFile(): LLMConfig | null {
 
 /**
  * Resolve an LLM provider from (in priority order):
- *   1. ~/.stickyinc/llm.json
- *   2. OPENROUTER_API_KEY   — OpenRouter (default model: anthropic/claude-3.5-haiku)
- *   3. ANTHROPIC_API_KEY    — Anthropic direct
- *   4. OPENAI_API_KEY       — OpenAI direct
+ *   1. ~/.stickyinc/llm.json           — explicit `provider` field wins
+ *   2. OPENROUTER_API_KEY              — OpenRouter (default: anthropic/claude-3.5-haiku)
+ *   3. ANTHROPIC_API_KEY               — Anthropic direct
+ *   4. OPENAI_API_KEY                  — OpenAI direct
+ *   5. `claude` CLI on PATH            — Claude Code subscription (no key needed)
+ *   6. `codex` CLI on PATH             — ChatGPT subscription via Codex (no key needed)
  *
- * Returns null if nothing is configured (LLM features fail with a clear message).
+ * Returns null if nothing is configured and neither subscription CLI is
+ * installed (LLM features fail with a clear message).
  */
 export function resolveLLMProvider(): LLMProvider | null {
   const cfg = readConfigFile();
@@ -80,6 +91,16 @@ export function resolveLLMProvider(): LLMProvider | null {
           extra_headers: cfg.extra_headers,
         });
       }
+      case "claude-code": {
+        const binary = findClaudeBinary();
+        if (!binary) return null;
+        return new ClaudeCodeProvider({ binary, model: cfg.model });
+      }
+      case "codex": {
+        const binary = findCodexBinary();
+        if (!binary) return null;
+        return new CodexProvider({ binary, model: cfg.model });
+      }
     }
   }
 
@@ -107,6 +128,24 @@ export function resolveLLMProvider(): LLMProvider | null {
       model: process.env.STICKYINC_MODEL ?? "gpt-4o-mini",
       base_url: "https://api.openai.com/v1",
       provider_label: "openai",
+    });
+  }
+
+  // Zero-config subscription fallbacks — if the user has Claude Code or
+  // Codex installed and signed in, we piggyback on their subscription.
+  // Claude Code wins ties since StickyInc's whole UX assumes it.
+  const claudeBin = findClaudeBinary();
+  if (claudeBin) {
+    return new ClaudeCodeProvider({
+      binary: claudeBin,
+      model: process.env.STICKYINC_MODEL,
+    });
+  }
+  const codexBin = findCodexBinary();
+  if (codexBin) {
+    return new CodexProvider({
+      binary: codexBin,
+      model: process.env.STICKYINC_MODEL,
     });
   }
 
