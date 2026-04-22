@@ -27,15 +27,14 @@ jobs:
 
   build-pane:
     name: Pane (${{ matrix.os }})
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-            bundle: dmg
-          - os: macos-13
-            target: x86_64-apple-darwin
             bundle: dmg
           - os: windows-latest
             target: x86_64-pc-windows-msvc
