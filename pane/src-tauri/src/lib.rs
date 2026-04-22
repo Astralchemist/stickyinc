@@ -20,6 +20,7 @@ use crate::wizard::{
 #[derive(Debug, Serialize, Clone)]
 pub struct Task {
     pub id: i64,
+    pub uuid: String,
     pub text: String,
     pub created_at: String,
     pub completed_at: Option<String>,
@@ -40,21 +41,152 @@ fn db_path() -> PathBuf {
 fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
     let conn = Connection::open(path)?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
+    // Phase 1: tables + indexes that don't depend on columns the migrations
+    // below add. Creating the uuid UNIQUE INDEX here would fail on pre-v0.6
+    // databases where the column doesn't exist yet.
     conn.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT,
             text TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             completed_at TEXT,
             due_at TEXT,
-            source TEXT NOT NULL DEFAULT 'claude'
+            source TEXT NOT NULL DEFAULT 'claude',
+            fingerprint TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed_at);
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
+
+        CREATE TABLE IF NOT EXISTS meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS task_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_uuid TEXT NOT NULL UNIQUE,
+            task_uuid TEXT NOT NULL,
+            op TEXT NOT NULL CHECK (op IN ('create','complete','uncomplete','edit','delete')),
+            payload TEXT,
+            device_id TEXT NOT NULL,
+            ts TEXT NOT NULL DEFAULT (datetime('now')),
+            lamport INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_uuid);
+        CREATE INDEX IF NOT EXISTS idx_task_events_lamport ON task_events(device_id, lamport);
+        "#,
+    )?;
+    // Phase 2: column-adding migrations.
+    migrate_add_fingerprint(&conn)?;
+    migrate_add_uuid(&conn)?;
+    // Phase 3: indexes on migrated columns.
+    conn.execute_batch(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_uuid ON tasks(uuid);
         "#,
     )?;
     Ok(conn)
+}
+
+/// Idempotent migration: add `uuid` column to pre-v0.6 tasks tables and
+/// backfill one for every existing row. Safe to run on fresh DBs too —
+/// the column already exists and the UPDATE WHERE uuid IS NULL is a noop.
+fn migrate_add_uuid(conn: &Connection) -> rusqlite::Result<()> {
+    let has_col: bool = {
+        let mut stmt = conn.prepare("SELECT 1 FROM pragma_table_info('tasks') WHERE name = 'uuid'")?;
+        stmt.exists([])?
+    };
+    if !has_col {
+        conn.execute("ALTER TABLE tasks ADD COLUMN uuid TEXT", [])?;
+    }
+    // Backfill — select first (borrow ends), then update in a separate statement.
+    let pending: Vec<i64> = {
+        let mut stmt = conn.prepare("SELECT id FROM tasks WHERE uuid IS NULL")?;
+        let rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+    for id in pending {
+        let u = uuid::Uuid::new_v4().to_string();
+        conn.execute("UPDATE tasks SET uuid = ? WHERE id = ?", rusqlite::params![u, id])?;
+    }
+    // The UNIQUE INDEX was CREATE'd with IF NOT EXISTS in open_db; now that all
+    // rows have a uuid, it's valid.
+    Ok(())
+}
+
+/// Idempotent migration: ensure fingerprint column exists on older DBs.
+/// Matches what src/db.ts already does on the Node side, so both programs
+/// agree on the schema regardless of which one touched the file first.
+fn migrate_add_fingerprint(conn: &Connection) -> rusqlite::Result<()> {
+    let has_col: bool = {
+        let mut stmt = conn.prepare("SELECT 1 FROM pragma_table_info('tasks') WHERE name = 'fingerprint'")?;
+        stmt.exists([])?
+    };
+    if !has_col {
+        conn.execute("ALTER TABLE tasks ADD COLUMN fingerprint TEXT", [])?;
+    }
+    Ok(())
+}
+
+/// Fetch (or generate + persist) this machine's device_id. Used to stamp
+/// every task_events row so future sync can filter by origin.
+fn ensure_device_id(conn: &Connection) -> rusqlite::Result<String> {
+    let existing: Option<String> = conn
+        .query_row("SELECT value FROM meta WHERE key = 'device_id'", [], |row| row.get(0))
+        .optional()?;
+    if let Some(id) = existing {
+        return Ok(id);
+    }
+    let id = uuid::Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT OR IGNORE INTO meta (key, value) VALUES ('device_id', ?)",
+        [&id],
+    )?;
+    // In the rare race where another process inserted first, read it back.
+    let final_id: String = conn.query_row(
+        "SELECT value FROM meta WHERE key = 'device_id'",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(final_id)
+}
+
+/// Next Lamport-style counter for this device. Monotonic per device,
+/// independent across devices — that's all we need for deterministic
+/// replay ordering when merging event streams later.
+fn next_lamport(conn: &Connection, device_id: &str) -> rusqlite::Result<i64> {
+    let current: Option<i64> = conn
+        .query_row(
+            "SELECT MAX(lamport) FROM task_events WHERE device_id = ?",
+            [device_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(current.unwrap_or(0) + 1)
+}
+
+/// Append a single row to the event log. Called inside the same transaction
+/// as the task mutation itself so we never have a task change without a
+/// matching event (or vice versa).
+fn record_event(
+    conn: &Connection,
+    op: &str,
+    task_uuid: &str,
+    payload: Option<&serde_json::Value>,
+) -> rusqlite::Result<()> {
+    let device_id = ensure_device_id(conn)?;
+    let lamport = next_lamport(conn, &device_id)?;
+    let event_uuid = uuid::Uuid::new_v4().to_string();
+    let payload_str: Option<String> = payload.map(|p| p.to_string());
+    conn.execute(
+        "INSERT INTO task_events (event_uuid, task_uuid, op, payload, device_id, lamport)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        rusqlite::params![event_uuid, task_uuid, op, payload_str, device_id, lamport],
+    )?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -63,7 +195,7 @@ fn list_open_tasks(db: tauri::State<'_, Mutex<DbPath>>) -> Result<Vec<Task>, Str
     let conn = open_db(&path).map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, text, created_at, completed_at, due_at, source
+            "SELECT id, uuid, text, created_at, completed_at, due_at, source
              FROM tasks
              WHERE completed_at IS NULL
              ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at ASC",
@@ -73,11 +205,12 @@ fn list_open_tasks(db: tauri::State<'_, Mutex<DbPath>>) -> Result<Vec<Task>, Str
         .query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,
-                text: row.get(1)?,
-                created_at: row.get(2)?,
-                completed_at: row.get(3)?,
-                due_at: row.get(4)?,
-                source: row.get(5)?,
+                uuid: row.get(1)?,
+                text: row.get(2)?,
+                created_at: row.get(3)?,
+                completed_at: row.get(4)?,
+                due_at: row.get(5)?,
+                source: row.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -99,7 +232,7 @@ fn list_recent_done(
     let modifier = format!("-{} hours", hours);
     let mut stmt = conn
         .prepare(
-            "SELECT id, text, created_at, completed_at, due_at, source
+            "SELECT id, uuid, text, created_at, completed_at, due_at, source
              FROM tasks
              WHERE completed_at IS NOT NULL
                AND completed_at >= datetime('now', ?)
@@ -110,11 +243,12 @@ fn list_recent_done(
         .query_map([modifier], |row| {
             Ok(Task {
                 id: row.get(0)?,
-                text: row.get(1)?,
-                created_at: row.get(2)?,
-                completed_at: row.get(3)?,
-                due_at: row.get(4)?,
-                source: row.get(5)?,
+                uuid: row.get(1)?,
+                text: row.get(2)?,
+                created_at: row.get(3)?,
+                completed_at: row.get(4)?,
+                due_at: row.get(5)?,
+                source: row.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -138,7 +272,7 @@ fn list_archived_done(
     let modifier = format!("-{} hours", hours);
     let mut stmt = conn
         .prepare(
-            "SELECT id, text, created_at, completed_at, due_at, source
+            "SELECT id, uuid, text, created_at, completed_at, due_at, source
              FROM tasks
              WHERE completed_at IS NOT NULL
                AND completed_at < datetime('now', ?)
@@ -150,11 +284,12 @@ fn list_archived_done(
         .query_map(rusqlite::params![modifier, limit], |row| {
             Ok(Task {
                 id: row.get(0)?,
-                text: row.get(1)?,
-                created_at: row.get(2)?,
-                completed_at: row.get(3)?,
-                due_at: row.get(4)?,
-                source: row.get(5)?,
+                uuid: row.get(1)?,
+                text: row.get(2)?,
+                created_at: row.get(3)?,
+                completed_at: row.get(4)?,
+                due_at: row.get(5)?,
+                source: row.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -178,33 +313,47 @@ fn add_task_quickadd(
     let (task_text, due_at) = parse_inline_due(trimmed);
 
     let path = db.lock().unwrap().0.clone();
-    let conn = open_db(&path).map_err(|e| e.to_string())?;
-    conn.execute(
-        "INSERT INTO tasks (text, due_at, source, fingerprint) VALUES (?, ?, 'quickadd', ?)",
+    let mut conn = open_db(&path).map_err(|e| e.to_string())?;
+
+    let task_uuid = uuid::Uuid::new_v4().to_string();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute(
+        "INSERT INTO tasks (uuid, text, due_at, source, fingerprint) VALUES (?, ?, ?, 'quickadd', ?)",
         rusqlite::params![
+            task_uuid,
             task_text,
             due_at,
             fingerprint(&task_text),
         ],
     )
     .map_err(|e| e.to_string())?;
-    let id = conn.last_insert_rowid();
-    let task = conn
+
+    let payload = serde_json::json!({
+        "text": task_text,
+        "due_at": due_at,
+        "source": "quickadd",
+    });
+    record_event(&tx, "create", &task_uuid, Some(&payload)).map_err(|e| e.to_string())?;
+
+    let task = tx
         .query_row(
-            "SELECT id, text, created_at, completed_at, due_at, source FROM tasks WHERE id = ?",
-            [id],
+            "SELECT id, uuid, text, created_at, completed_at, due_at, source FROM tasks WHERE uuid = ?",
+            [&task_uuid],
             |row| {
                 Ok(Task {
                     id: row.get(0)?,
-                    text: row.get(1)?,
-                    created_at: row.get(2)?,
-                    completed_at: row.get(3)?,
-                    due_at: row.get(4)?,
-                    source: row.get(5)?,
+                    uuid: row.get(1)?,
+                    text: row.get(2)?,
+                    created_at: row.get(3)?,
+                    completed_at: row.get(4)?,
+                    due_at: row.get(5)?,
+                    source: row.get(6)?,
                 })
             },
         )
         .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(task)
 }
 
@@ -264,29 +413,52 @@ fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
 #[tauri::command]
 fn complete_task(id: i64, db: tauri::State<'_, Mutex<DbPath>>) -> Result<Option<Task>, String> {
     let path = db.lock().unwrap().0.clone();
-    let conn = open_db(&path).map_err(|e| e.to_string())?;
-    conn.execute(
-        "UPDATE tasks SET completed_at = datetime('now') WHERE id = ? AND completed_at IS NULL",
-        [id],
-    )
-    .map_err(|e| e.to_string())?;
-    let task = conn
+    let mut conn = open_db(&path).map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    // Look up the task's uuid *and* whether it was open before we toggle;
+    // only-still-open transitions get an event written.
+    let prior: Option<(String, Option<String>)> = tx
         .query_row(
-            "SELECT id, text, created_at, completed_at, due_at, source FROM tasks WHERE id = ?",
+            "SELECT uuid, completed_at FROM tasks WHERE id = ?",
+            [id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    if let Some((task_uuid, completed_at)) = prior.clone() {
+        if completed_at.is_none() {
+            tx.execute(
+                "UPDATE tasks SET completed_at = datetime('now') WHERE id = ? AND completed_at IS NULL",
+                [id],
+            )
+            .map_err(|e| e.to_string())?;
+            record_event(&tx, "complete", &task_uuid, None).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let task = tx
+        .query_row(
+            "SELECT id, uuid, text, created_at, completed_at, due_at, source FROM tasks WHERE id = ?",
             [id],
             |row| {
                 Ok(Task {
                     id: row.get(0)?,
-                    text: row.get(1)?,
-                    created_at: row.get(2)?,
-                    completed_at: row.get(3)?,
-                    due_at: row.get(4)?,
-                    source: row.get(5)?,
+                    uuid: row.get(1)?,
+                    text: row.get(2)?,
+                    created_at: row.get(3)?,
+                    completed_at: row.get(4)?,
+                    due_at: row.get(5)?,
+                    source: row.get(6)?,
                 })
             },
         )
         .optional()
         .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+    let _ = prior;
     Ok(task)
 }
 
