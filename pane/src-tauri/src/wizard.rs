@@ -70,6 +70,110 @@ pub struct ClaudeDiff {
     pub pretty: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct DetectedLocal {
+    pub kind: String, // "ollama" | "lm-studio"
+    pub url: String,
+    pub first_model: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SubscriptionDetection {
+    pub claude_code: bool,
+    pub codex: bool,
+    pub gemini: bool,
+    pub local: Option<DetectedLocal>,
+}
+
+fn binary_on_path(name: &str) -> bool {
+    let path = match std::env::var_os("PATH") {
+        Some(p) => p,
+        None => return false,
+    };
+    let exts: &[&str] = if cfg!(windows) {
+        &[".exe", ".cmd", ".bat", ""]
+    } else {
+        &[""]
+    };
+    for dir in std::env::split_paths(&path) {
+        if dir.as_os_str().is_empty() {
+            continue;
+        }
+        for ext in exts {
+            let candidate = dir.join(format!("{}{}", name, ext));
+            if candidate.exists() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+async fn probe_local_endpoint(
+    client: &reqwest::Client,
+    url: &str,
+    kind: &str,
+) -> Option<DetectedLocal> {
+    if kind == "ollama" {
+        let res = client.get(format!("{}/api/tags", url)).send().await.ok()?;
+        if !res.status().is_success() {
+            return None;
+        }
+        let data: serde_json::Value = res.json().await.ok()?;
+        let first = data
+            .get("models")
+            .and_then(|m| m.as_array())
+            .and_then(|a| a.first())
+            .and_then(|m| m.get("name"))
+            .and_then(|n| n.as_str())?;
+        Some(DetectedLocal {
+            kind: kind.to_string(),
+            url: url.to_string(),
+            first_model: first.to_string(),
+        })
+    } else {
+        let res = client.get(format!("{}/v1/models", url)).send().await.ok()?;
+        if !res.status().is_success() {
+            return None;
+        }
+        let data: serde_json::Value = res.json().await.ok()?;
+        let first = data
+            .get("data")
+            .and_then(|d| d.as_array())
+            .and_then(|a| a.first())
+            .and_then(|m| m.get("id"))
+            .and_then(|n| n.as_str())?;
+        Some(DetectedLocal {
+            kind: kind.to_string(),
+            url: url.to_string(),
+            first_model: first.to_string(),
+        })
+    }
+}
+
+#[tauri::command]
+pub async fn wizard_detect_subscriptions() -> SubscriptionDetection {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(600))
+        .build()
+        .ok();
+    let local = if let Some(c) = client {
+        if let Some(d) = probe_local_endpoint(&c, "http://127.0.0.1:11434", "ollama").await {
+            Some(d)
+        } else {
+            probe_local_endpoint(&c, "http://127.0.0.1:1234", "lm-studio").await
+        }
+    } else {
+        None
+    };
+    SubscriptionDetection {
+        claude_code: binary_on_path("claude"),
+        codex: binary_on_path("codex"),
+        gemini: binary_on_path("gemini"),
+        local,
+    }
+}
+
 fn mcp_default_command() -> (String, Vec<String>) {
     // For v0.5: use node + the repo's built MCP entry. For v0.6 we bundle a
     // sidecar binary and drop the node requirement entirely.

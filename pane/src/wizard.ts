@@ -4,7 +4,15 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 type StepName = "welcome" | "provider" | "claude" | "watcher" | "done";
 const ORDER: StepName[] = ["welcome", "provider", "claude", "watcher", "done"];
 
-type Provider = "anthropic" | "openrouter" | "openai" | "compat";
+type Provider =
+  | "anthropic"
+  | "openrouter"
+  | "openai"
+  | "compat"
+  | "claude-code"
+  | "codex"
+  | "gemini"
+  | "local";
 
 interface LLMConfig {
   provider: Provider;
@@ -20,11 +28,25 @@ interface ClaudeDiff {
   pretty: string;
 }
 
+interface DetectedLocal {
+  kind: "ollama" | "lm-studio";
+  url: string;
+  first_model: string;
+}
+
+interface SubscriptionDetection {
+  claude_code: boolean;
+  codex: boolean;
+  gemini: boolean;
+  local: DetectedLocal | null;
+}
+
 const state = {
   current: "welcome" as StepName,
   llm: null as LLMConfig | null,
   claudeDiff: null as ClaudeDiff | null,
   claudeResolution: "replace" as "replace" | "skip" | "edit",
+  detected: null as SubscriptionDetection | null,
 };
 
 function $(sel: string): HTMLElement {
@@ -47,8 +69,119 @@ function goto(step: StepName): void {
 
   state.current = step;
 
+  if (step === "provider") void onEnterProviderStep();
   if (step === "claude") void loadClaudeDiff();
 }
+
+/* ─── provider step: subscription detection + BYOK toggle ──────────────── */
+
+async function onEnterProviderStep(): Promise<void> {
+  // Detect once per wizard session; the result can't change while the wizard
+  // is open (user can't install a CLI from inside the app).
+  if (state.detected === null) {
+    try {
+      state.detected = await invoke<SubscriptionDetection>("wizard_detect_subscriptions");
+    } catch {
+      state.detected = { claude_code: false, codex: false, gemini: false, local: null };
+    }
+  }
+
+  const cards = buildDetectedCards(state.detected);
+  const list = $("#detected-list");
+  list.innerHTML = "";
+  for (const card of cards) list.appendChild(card);
+
+  if (cards.length > 0) {
+    showBlock("detected");
+  } else {
+    showBlock("byok");
+  }
+}
+
+function showBlock(which: "detected" | "byok"): void {
+  const detectedWrap = $("#detected-wrap");
+  const byokWrap = $("#byok-wrap");
+  const toggleByok = $("#toggle-byok");
+  const toggleDetected = $("#toggle-detected");
+  const validateBtn = $("#validate-next");
+
+  if (which === "detected") {
+    detectedWrap.hidden = false;
+    byokWrap.hidden = true;
+    // Only show "switch to BYOK" link when detected options actually exist.
+    toggleByok.hidden = !state.detected || !hasAnyDetected(state.detected);
+    toggleDetected.hidden = true;
+    validateBtn.hidden = true;
+  } else {
+    detectedWrap.hidden = true;
+    byokWrap.hidden = false;
+    toggleByok.hidden = true;
+    toggleDetected.hidden = !state.detected || !hasAnyDetected(state.detected);
+    validateBtn.hidden = false;
+    refreshProviderFields();
+  }
+}
+
+function hasAnyDetected(d: SubscriptionDetection): boolean {
+  return d.claude_code || d.codex || d.gemini || d.local !== null;
+}
+
+function buildDetectedCards(d: SubscriptionDetection): HTMLElement[] {
+  const cards: HTMLElement[] = [];
+  if (d.claude_code) {
+    cards.push(makeCard("claude-code", "Claude Code", "Signed in · bills to your Claude Max / Pro"));
+  }
+  if (d.codex) {
+    cards.push(makeCard("codex", "OpenAI Codex CLI", "Signed in · bills to your ChatGPT Plus / Pro / Team"));
+  }
+  if (d.gemini) {
+    cards.push(makeCard("gemini", "Gemini CLI", "Signed in · bills to your Google account"));
+  }
+  if (d.local) {
+    const name = d.local.kind === "ollama" ? "Ollama" : "LM Studio";
+    cards.push(
+      makeCard("local", `${name} — local`, `${d.local.first_model} · free, offline, no cloud call`),
+    );
+  }
+  return cards;
+}
+
+function makeCard(provider: Provider, title: string, sub: string): HTMLButtonElement {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "detected-card";
+  btn.dataset.provider = provider;
+  btn.innerHTML = `
+    <span class="detected-check" aria-hidden="true">✓</span>
+    <span class="detected-body">
+      <span class="detected-title"></span>
+      <span class="detected-sub"></span>
+    </span>
+    <span class="detected-arrow" aria-hidden="true">→</span>
+  `;
+  // Avoid innerHTML for user-visible text; keep XSS-safe even for our own strings.
+  (btn.querySelector(".detected-title") as HTMLElement).textContent = title;
+  (btn.querySelector(".detected-sub") as HTMLElement).textContent = sub;
+  btn.addEventListener("click", () => void pickDetected(provider));
+  return btn;
+}
+
+async function pickDetected(provider: Provider): Promise<void> {
+  const cfg: LLMConfig = { provider, api_key: "" };
+  // For local, pin the detected model so the runtime picks the same one.
+  if (provider === "local" && state.detected?.local) {
+    cfg.model = state.detected.local.first_model;
+  }
+  try {
+    await invoke("wizard_save_llm_config", { cfg });
+    state.llm = cfg;
+    goto("claude");
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/* ─── BYOK flow (existing) ─────────────────────────────────────────────── */
 
 function provider(): Provider {
   const sel = document.querySelector<HTMLInputElement>('input[name="provider"]:checked');
@@ -63,13 +196,13 @@ function refreshProviderFields(): void {
   if (model) model.hidden = p === "anthropic";
 
   const note = $("#provider-note");
-  const messages: Record<Provider, string> = {
+  const messages: Partial<Record<Provider, string>> = {
     anthropic: 'No key? <a href="#" data-link="https://console.anthropic.com/">Sign up at Anthropic →</a>',
     openrouter: 'No key? <a href="#" data-link="https://openrouter.ai/keys">Get one free from OpenRouter →</a>',
     openai: 'No key? <a href="#" data-link="https://platform.openai.com/api-keys">Get one from OpenAI →</a>',
     compat: 'Any OpenAI-compatible endpoint works — Ollama, vLLM, Groq, Together, Fireworks.',
   };
-  note.innerHTML = messages[p];
+  note.innerHTML = messages[p] ?? "";
 }
 
 async function validateAndContinue(): Promise<void> {
@@ -94,7 +227,7 @@ async function validateAndContinue(): Promise<void> {
   try {
     const result = await invoke<{ ok: boolean; model: string; detail?: string }>(
       "wizard_validate_llm_key",
-      { cfg }
+      { cfg },
     );
     if (!result.ok) {
       out.className = "validate err";
@@ -111,6 +244,8 @@ async function validateAndContinue(): Promise<void> {
     out.textContent = err instanceof Error ? err.message : String(err);
   }
 }
+
+/* ─── claude.json diff + registration (unchanged) ─────────────────────── */
 
 function renderDiff(diff: ClaudeDiff): void {
   $("#claude-state").textContent =
@@ -171,13 +306,23 @@ async function finish(watcherOn: boolean): Promise<void> {
   goto("done");
 }
 
+/* ─── bindings ─────────────────────────────────────────────────────────── */
+
 function bind(): void {
   document.querySelectorAll<HTMLInputElement>('input[name="provider"]').forEach((el) => {
     el.addEventListener("change", refreshProviderFields);
   });
-  refreshProviderFields();
 
   $("#validate-next").addEventListener("click", () => void validateAndContinue());
+
+  $("#toggle-byok").addEventListener("click", (e) => {
+    e.preventDefault();
+    showBlock("byok");
+  });
+  $("#toggle-detected").addEventListener("click", (e) => {
+    e.preventDefault();
+    showBlock("detected");
+  });
 
   document.querySelectorAll<HTMLElement>("[data-go]").forEach((el) => {
     el.addEventListener("click", () => goto(el.dataset.go as StepName));

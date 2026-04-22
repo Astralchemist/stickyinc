@@ -11,8 +11,9 @@ use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 
 use crate::wizard::{
-    open_wizard, open_wizard_window, setup_is_complete, wizard_close, wizard_diff_claude_json,
-    wizard_mark_complete, wizard_read_llm_config, wizard_register_mcp, wizard_save_llm_config,
+    open_wizard, open_wizard_window, setup_is_complete, wizard_close,
+    wizard_detect_subscriptions, wizard_diff_claude_json, wizard_mark_complete,
+    wizard_read_llm_config, wizard_register_mcp, wizard_save_llm_config,
     wizard_set_watcher_enabled, wizard_validate_llm_key,
 };
 
@@ -340,6 +341,7 @@ pub fn run() {
             get_setup_complete,
             open_wizard,
             wizard_close,
+            wizard_detect_subscriptions,
             wizard_diff_claude_json,
             wizard_register_mcp,
             wizard_read_llm_config,
