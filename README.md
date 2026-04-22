@@ -7,11 +7,12 @@
   ╚══════╝   ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝       ╚═╝╚═╝  ╚═══╝ ╚═════╝
 
            ┌─────────────────────────────────────────────────────────┐
-           │  v0.5.0  ·  the setup-wizard release                    │
+           │  v0.5.1  ·  the subscription-mode release               │
            │                                                         │
-           │   ▸ one-click onboarding (pick provider, paste key)     │
-           │   ▸ global ⌘⇧N / Ctrl+Shift+N quick-add window          │
-           │   ▸ tagged release builds for mac · win · linux         │
+           │   ▸ zero-key auto-detect for claude / codex / gemini    │
+           │   ▸ Ollama + LM Studio localhost fallback, free         │
+           │   ▸ sidebar hidden until setup is done — subtle bulges  │
+           │     from the edge on new task / due / setup events      │
            └─────────────────────────────────────────────────────────┘
 
 
@@ -26,7 +27,7 @@
 ```
 
 <p align="center">
-  <strong>v0.5.0</strong> · MIT · MCP-first · no backend, ever<br />
+  <strong>v0.5.1</strong> · MIT · MCP-first · no backend, ever<br />
   <em>Bring your own LLM key — or piggyback on Claude Code, ChatGPT, Gemini, or local Ollama. Zero config either way.</em>
 </p>
 
@@ -99,12 +100,12 @@ Pre-built binaries ship from every tagged release. Signed and notarized builds a
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS (Apple Silicon) | `StickyInc_0.5.0_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
-| Windows (x64) — installer | `StickyInc_0.5.0_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
-| Windows (x64) — MSI | `StickyInc_0.5.0_x64_en-US.msi` | for group-policy deployment |
-| Linux (Debian/Ubuntu) | `StickyInc_0.5.0_amd64.deb` | `sudo dpkg -i` |
-| Linux (RPM/Fedora) | `StickyInc-0.5.0-1.x86_64.rpm` | `sudo rpm -i` |
-| Linux (portable) | `StickyInc_0.5.0_amd64.AppImage` | `chmod +x` and run |
+| macOS (Apple Silicon) | `StickyInc_0.5.1_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
+| Windows (x64) — installer | `StickyInc_0.5.1_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
+| Windows (x64) — MSI | `StickyInc_0.5.1_x64_en-US.msi` | for group-policy deployment |
+| Linux (Debian/Ubuntu) | `StickyInc_0.5.1_amd64.deb` | `sudo dpkg -i` |
+| Linux (RPM/Fedora) | `StickyInc-0.5.1-1.x86_64.rpm` | `sudo rpm -i` |
+| Linux (portable) | `StickyInc_0.5.1_amd64.AppImage` | `chmod +x` and run |
 
 > **[Grab the latest release →](https://github.com/Astralchemist/stickyinc/releases/latest)**
 

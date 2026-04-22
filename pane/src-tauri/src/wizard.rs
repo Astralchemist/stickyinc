@@ -304,7 +304,7 @@ pub fn wizard_mark_complete(app: tauri::AppHandle) -> Result<(), String> {
         cfg = serde_json::json!({});
     }
     cfg["completed_at"] = serde_json::Value::String(chrono_like_now());
-    cfg["version"] = serde_json::json!("0.5.0");
+    cfg["version"] = serde_json::json!("0.5.1");
     write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
     // Tell the main pane window to flip out of hidden/bulge mode and show the strip.
     let _ = app.emit("setup-complete", ());
