@@ -5,6 +5,8 @@ import { AnthropicProvider } from "./anthropic.js";
 import { OpenAICompatProvider } from "./openai.js";
 import { ClaudeCodeProvider, findClaudeBinary } from "./claude_code.js";
 import { CodexProvider, findCodexBinary } from "./codex.js";
+import { GeminiProvider, findGeminiBinary } from "./gemini.js";
+import { probeLocalProvider } from "./local.js";
 import type { LLMProvider } from "./types.js";
 
 export type { ChatMessage, ChatOptions, ChatResult, LLMProvider } from "./types.js";
@@ -18,7 +20,9 @@ interface LLMConfig {
     | "openai"
     | "compat"
     | "claude-code"
-    | "codex";
+    | "codex"
+    | "gemini"
+    | "local";
   model?: string;
   api_key?: string;
   base_url?: string;
@@ -34,19 +38,29 @@ function readConfigFile(): LLMConfig | null {
   }
 }
 
+let cached: LLMProvider | null | undefined;
+
 /**
  * Resolve an LLM provider from (in priority order):
  *   1. ~/.stickyinc/llm.json           — explicit `provider` field wins
- *   2. OPENROUTER_API_KEY              — OpenRouter (default: anthropic/claude-3.5-haiku)
+ *   2. OPENROUTER_API_KEY              — OpenRouter
  *   3. ANTHROPIC_API_KEY               — Anthropic direct
  *   4. OPENAI_API_KEY                  — OpenAI direct
- *   5. `claude` CLI on PATH            — Claude Code subscription (no key needed)
- *   6. `codex` CLI on PATH             — ChatGPT subscription via Codex (no key needed)
+ *   5. `claude`  CLI on PATH           — Claude Code subscription
+ *   6. `codex`   CLI on PATH           — ChatGPT subscription via Codex
+ *   7. `gemini`  CLI on PATH           — Google account (Gemini Advanced/free)
+ *   8. localhost :11434 or :1234       — Ollama / LM Studio (local, free)
  *
- * Returns null if nothing is configured and neither subscription CLI is
- * installed (LLM features fail with a clear message).
+ * Cached for the lifetime of the process so repeated callers don't re-probe
+ * localhost each time. Returns null if nothing above is available.
  */
-export function resolveLLMProvider(): LLMProvider | null {
+export async function resolveLLMProvider(): Promise<LLMProvider | null> {
+  if (cached !== undefined) return cached;
+  cached = await resolveInternal();
+  return cached;
+}
+
+async function resolveInternal(): Promise<LLMProvider | null> {
   const cfg = readConfigFile();
 
   if (cfg) {
@@ -101,6 +115,14 @@ export function resolveLLMProvider(): LLMProvider | null {
         if (!binary) return null;
         return new CodexProvider({ binary, model: cfg.model });
       }
+      case "gemini": {
+        const binary = findGeminiBinary();
+        if (!binary) return null;
+        return new GeminiProvider({ binary, model: cfg.model });
+      }
+      case "local": {
+        return probeLocalProvider(cfg.model);
+      }
     }
   }
 
@@ -131,23 +153,23 @@ export function resolveLLMProvider(): LLMProvider | null {
     });
   }
 
-  // Zero-config subscription fallbacks — if the user has Claude Code or
-  // Codex installed and signed in, we piggyback on their subscription.
-  // Claude Code wins ties since StickyInc's whole UX assumes it.
+  // Zero-config fallbacks — whatever subscription the user already pays for,
+  // or a local server they're already running. Order: Claude (StickyInc's
+  // primary persona) → Codex (ChatGPT) → Gemini (Google) → local (Ollama/LM).
   const claudeBin = findClaudeBinary();
   if (claudeBin) {
-    return new ClaudeCodeProvider({
-      binary: claudeBin,
-      model: process.env.STICKYINC_MODEL,
-    });
+    return new ClaudeCodeProvider({ binary: claudeBin, model: process.env.STICKYINC_MODEL });
   }
   const codexBin = findCodexBinary();
   if (codexBin) {
-    return new CodexProvider({
-      binary: codexBin,
-      model: process.env.STICKYINC_MODEL,
-    });
+    return new CodexProvider({ binary: codexBin, model: process.env.STICKYINC_MODEL });
   }
+  const geminiBin = findGeminiBinary();
+  if (geminiBin) {
+    return new GeminiProvider({ binary: geminiBin, model: process.env.STICKYINC_MODEL });
+  }
+  const local = await probeLocalProvider(process.env.STICKYINC_MODEL);
+  if (local) return local;
 
   return null;
 }

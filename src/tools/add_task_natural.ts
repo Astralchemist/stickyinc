@@ -50,12 +50,12 @@ function extractJson(raw: string): unknown {
 }
 
 async function parseTask(input: string): Promise<ParsedTask> {
-  const provider = resolveLLMProvider();
+  const provider = await resolveLLMProvider();
   if (!provider) {
     throw new Error(
-      "No LLM configured. Either (a) install Claude Code or the OpenAI Codex CLI and sign in — " +
-        "StickyInc will piggyback on your subscription automatically, or (b) set OPENROUTER_API_KEY, " +
-        "ANTHROPIC_API_KEY, or OPENAI_API_KEY, or create ~/.stickyinc/llm.json. " +
+      "No LLM configured. StickyInc will use whatever you already have: the claude / codex / gemini " +
+        "CLI signed in (subscription piggyback), Ollama or LM Studio running locally, or an API key " +
+        "via OPENROUTER_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY. Or create ~/.stickyinc/llm.json. " +
         "See README 'LLM providers'."
     );
   }

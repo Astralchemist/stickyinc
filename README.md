@@ -27,7 +27,7 @@
 
 <p align="center">
   <strong>v0.5.0</strong> · MIT · MCP-first · no backend, ever<br />
-  <em>Bring your own LLM key — or piggyback on your Claude Code / ChatGPT subscription. Zero config either way.</em>
+  <em>Bring your own LLM key — or piggyback on Claude Code, ChatGPT, Gemini, or local Ollama. Zero config either way.</em>
 </p>
 
 <p align="center">
@@ -147,16 +147,23 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 |---|---|---|---|
 | **Claude Code** — your Claude Max / Pro subscription, *no API key* | local `claude` CLI OAuth | `claude` on `$PATH` | `haiku` |
 | **Codex (ChatGPT)** — your ChatGPT Plus / Pro / Team subscription, *no API key* | local `codex` CLI OAuth | `codex` on `$PATH` | whatever `codex` defaults to |
+| **Gemini** — your Google account (Gemini Advanced quota or free tier), *no API key* | local `gemini` CLI OAuth | `gemini` on `$PATH` | whatever `gemini` defaults to |
+| **Local (Ollama / LM Studio)** — fully offline, free, no cloud call at all | — | `:11434` or `:1234` responding | first installed model |
 | **OpenRouter** — one key, ~200 models, cheapest per token | API key | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-haiku` |
 | **Anthropic** (direct) | API key ([console.anthropic.com](https://console.anthropic.com/)) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
 | **OpenAI** (direct) | API key ([platform.openai.com](https://platform.openai.com/api-keys)) | `OPENAI_API_KEY` | `gpt-4o-mini` |
-| **OpenAI-compatible** (Groq, Together, Fireworks, Ollama, vLLM…) | API key | config file | — |
+| **OpenAI-compatible** (Groq, Together, Fireworks, vLLM…) | API key | config file | — |
 
 ### Zero-config path
 
-If you already have **Claude Code** or **OpenAI Codex CLI** installed and signed in, StickyInc uses that automatically — no key, no config file, no token costs on top of the subscription you already pay for. Each call shells out to `claude -p` / `codex exec` under the hood; expect ~1s of subprocess startup per parse, which is fine for quick-add and the daemon.
+Whatever you already pay for, StickyInc will use it. If any of these are set up on your machine, no key or config is needed:
 
-Prefer an API key? `export OPENROUTER_API_KEY=sk-or-...` and run. Env-var providers take priority over subscription fallbacks.
+- **Claude Code** (`claude` CLI) — bills to your Claude Max / Pro subscription
+- **OpenAI Codex CLI** (`codex`) — bills to your ChatGPT Plus / Pro / Team subscription
+- **Gemini CLI** (`gemini`) — uses your Google account (Gemini Advanced if you have it)
+- **Ollama** or **LM Studio** running locally — fully free, no cloud round-trip
+
+Each subscription CLI call shells out to the tool's print mode (`claude -p` / `codex exec` / `gemini -p`); expect ~1s of subprocess startup per parse. Local-server calls are direct HTTP and cost nothing. Prefer an API key anyway? `export OPENROUTER_API_KEY=sk-or-...` and it wins over auto-detect.
 
 ### Resolution priority
 
@@ -165,8 +172,10 @@ Prefer an API key? `export OPENROUTER_API_KEY=sk-or-...` and run. Env-var provid
   2 · OPENROUTER_API_KEY
   3 · ANTHROPIC_API_KEY
   4 · OPENAI_API_KEY
-  5 · claude  CLI on PATH  →  Claude Code subscription
-  6 · codex   CLI on PATH  →  ChatGPT subscription (via Codex)
+  5 · claude  CLI on PATH    →  Claude Code subscription
+  6 · codex   CLI on PATH    →  ChatGPT subscription (via Codex)
+  7 · gemini  CLI on PATH    →  Google / Gemini Advanced
+  8 · localhost :11434/:1234 →  Ollama / LM Studio
 ```
 
 ### Config file examples — `~/.stickyinc/llm.json`
@@ -179,6 +188,12 @@ Prefer an API key? `export OPENROUTER_API_KEY=sk-or-...` and run. Env-var provid
 ```
 ```json
 { "provider": "codex" }
+```
+```json
+{ "provider": "gemini", "model": "gemini-2.5-flash" }
+```
+```json
+{ "provider": "local" }
 ```
 ```json
 { "provider": "openrouter", "model": "openai/gpt-4.1-mini" }

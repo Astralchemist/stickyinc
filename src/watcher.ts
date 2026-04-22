@@ -155,12 +155,12 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
   const includeAssistant = opts.includeAssistant ?? false;
   const verbose = opts.verbose ?? true;
 
-  const provider = resolveLLMProvider();
+  const provider = await resolveLLMProvider();
   if (!provider) {
     console.error(
-      "No LLM configured. Either install Claude Code or the OpenAI Codex CLI and sign in " +
-        "(StickyInc will use your subscription automatically), or set OPENROUTER_API_KEY, " +
-        "ANTHROPIC_API_KEY, or OPENAI_API_KEY, or create ~/.stickyinc/llm.json.",
+      "No LLM configured. StickyInc auto-uses whatever is on this machine: claude / codex / gemini " +
+        "CLI (subscription), Ollama or LM Studio (local), or an API key via OPENROUTER_API_KEY / " +
+        "ANTHROPIC_API_KEY / OPENAI_API_KEY. Or create ~/.stickyinc/llm.json.",
     );
     process.exit(1);
   }
