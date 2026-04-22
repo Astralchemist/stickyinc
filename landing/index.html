@@ -3,17 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StickyInc — A reification layer between your chats and your commitments</title>
-    <meta name="description" content="A floating pane + MCP server. The decisions you make in chat don't evaporate — they stick to your screen. Free, open source, works with Claude, OpenRouter, OpenAI." />
-    <meta property="og:title" content="StickyInc" />
-    <meta property="og:description" content="Your chats evaporate. This sticks." />
+    <title>StickyInc — a reification layer between your chats and your commitments</title>
+    <meta name="description" content="A floating pane plus an MCP server. The decisions you make in chat don't evaporate — they stick to the side of your screen. Free, open source, works with Claude, OpenRouter, OpenAI." />
+    <meta property="og:title" content="StickyInc — your chats evaporate. this sticks." />
+    <meta property="og:description" content="A floating pane plus an MCP server. The commitments you make in chat land on the side of your screen until you tick them off. MIT, BYO key, no backend." />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/png" href="./icon.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="hero">
-      <p class="eyebrow" aria-hidden="true">stickyinc</p>
+    <header class="topbar" role="banner">
+      <a class="brand" href="#top" aria-label="stickyinc home">
+        <span>st<span class="i-letter">ı<span class="tittle"></span></span>cky<span class="i-letter">ı<span class="tittle"></span></span>nc</span>
+      </a>
+      <span class="ver" aria-label="version">v0.5.0</span>
+      <nav class="topnav" aria-label="primary">
+        <a href="#idea">idea</a>
+        <a href="#how">how</a>
+        <a href="#arch">architecture</a>
+        <a href="#download">download</a>
+        <a href="https://github.com/Astralchemist/stickyinc">github</a>
+      </nav>
+    </header>
+
+    <main class="hero" id="top">
+      <p class="eyebrow">stickyinc · v0.5.0 · the setup-wizard release</p>
 
       <h1>
         Your chats evaporate.<br />
@@ -23,24 +37,58 @@
       <p class="lede">
         A floating pane plus an MCP server. The things you decide in a chat
         — <em>call the dentist, email Sarah, schedule the review</em> —
-        don't vanish when the tab closes. They land on the side of your screen and
-        wait until you tick them off.
+        don't vanish when the tab closes. They land on the side of your screen
+        and wait until you tick them off.
       </p>
 
       <div class="cta-row">
-        <a class="cta primary" href="https://github.com/Astralchemist/stickyinc/releases">
-          Get on GitHub
+        <a class="cta primary" href="#download">
+          Download
         </a>
-        <a class="cta ghost" href="#how">How it works</a>
+        <a class="cta ghost" href="#idea">Read the idea</a>
       </div>
 
       <p class="sub">
         Free. Open source. MIT. BYO key. Works with Claude, OpenRouter, OpenAI,
-        or any OpenAI-compatible endpoint.
+        or any OpenAI-compatible endpoint. No backend, ever.
       </p>
     </main>
 
+    <section id="idea" class="idea" aria-labelledby="idea-title">
+      <p class="kicker">01 · the idea</p>
+      <h2 class="section-title" id="idea-title">
+        Chats are cheap.<br />The commitment graph is what compounds.
+      </h2>
+
+      <pre class="ascii" aria-hidden="true">      ┌──────────────────────────┐        ┌──────────────────────────┐
+      │ user  ▸  call the        │  MCP   │ ☐ call the dentist       │
+      │          dentist friday  │ ─────▶ │ ☐ email Sarah            │
+      │ claude ▸ noted, adding.  │  tool  │ ☑ ship v0.5              │
+      └──────────────────────────┘        │ ☐ make it stick          │
+                 │                        └──────────────────────────┘
+             the chat                               the pane
+         evaporates at close             lives in ~/.stickyinc forever</pre>
+
+      <p class="body-wide">
+        Every other AI overlay on the market follows the same shape —
+        <em>summon, ask, dismiss.</em> The model is a disposable oracle; you
+        are the durable storage. You close the tab and within an hour the
+        answer has evaporated from your brain.
+      </p>
+      <p class="body-wide">
+        StickyInc is the inverse. Chats are ephemeral; the <em>graph of
+        commitments</em> you build from them over months — the promises,
+        deadlines, quiet todos you let slip into conversation — is the part
+        that actually compounds. Nobody was storing it. StickyInc is the
+        canvas it lands on.
+      </p>
+      <p class="body-wide">
+        Swap Claude for GPT tomorrow. Your pane is still there.
+      </p>
+    </section>
+
     <section id="how" class="how" aria-labelledby="how-title">
+      <p class="kicker">02 · how it works</p>
       <h2 class="section-title" id="how-title">Three small moves.</h2>
 
       <ol class="steps">
@@ -60,7 +108,7 @@
           <p>
             Hover the strip on the right edge of your screen. The pane slides
             out. Click to complete — the task strikes through, then drops into
-            a quiet archive for tomorrow-you. The line Claude saw next turn
+            a quiet archive for tomorrow-you. The line Claude sees next turn
             says <em>"user completed: call the dentist."</em>
           </p>
         </li>
@@ -68,37 +116,199 @@
           <span class="step-n">03</span>
           <h3>Calendar gets it.</h3>
           <p>
-            Dated items forward to Google Calendar through
-            Claude's own connector. StickyInc doesn't run its own OAuth flow
-            — one less thing to set up, one less place your tokens live.
+            Dated items forward to Google Calendar through Claude's own
+            connector. StickyInc doesn't run its own OAuth flow — one less
+            thing to set up, one less place your tokens live.
           </p>
         </li>
       </ol>
     </section>
 
+    <section id="arch" class="arch" aria-labelledby="arch-title">
+      <p class="kicker">03 · architecture</p>
+      <h2 class="section-title" id="arch-title">
+        Two processes.<br />One SQLite file.
+      </h2>
+
+      <pre class="ascii" aria-hidden="true"> ┌──────────────────┐    MCP stdio    ┌──────────────────┐
+ │  Claude Desktop  │ ───tool call──▶ │  StickyInc MCP   │
+ │   Claude Code    │                 │   (Node, stdio)  │
+ │   any MCP host   │                 └────────┬─────────┘
+ └──────────────────┘                          │ SQL
+                                               ▼
+                                 ┌─────────────────────────┐
+                                 │ ~/.stickyinc/tasks.db   │
+                                 │    (SQLite, yours)      │
+                                 └─────────────┬───────────┘
+                                               │ notify-rs watcher
+                                               ▼
+                                    ┌────────────────────┐
+                                    │   Pane (Tauri)     │
+                                    │ edge-strip, always │
+                                    │ on top, translucent│
+                                    └────────────────────┘</pre>
+
+      <p class="body-wide">
+        Claude never talks to the pane directly. They share state through
+        SQLite — one source of truth, nothing to sync, no IPC to break. The
+        MCP server ships as a stdio binary; the pane is a Tauri app under
+        1&thinsp;MB of Rust. Both read and write the same <code>tasks.db</code>.
+      </p>
+    </section>
+
+    <section id="download" class="download" aria-labelledby="dl-title">
+      <p class="kicker">04 · download</p>
+      <h2 class="section-title" id="dl-title">
+        Pick your platform.<br />One click. One minute of setup.
+      </h2>
+
+      <p class="body-wide dl-note">
+        Every tagged release ships binaries for macOS, Windows, and Linux — all built in CI from
+        <a href="https://github.com/Astralchemist/stickyinc" target="_blank" rel="noopener">this repo</a>,
+        all open source. Builds are currently ad-hoc signed; notarized
+        installers arrive in v0.6 (see
+        <a href="https://github.com/Astralchemist/stickyinc/blob/main/SIGNING.md" target="_blank" rel="noopener">SIGNING.md</a>).
+      </p>
+
+      <ul class="dl-grid" role="list">
+        <li class="dl-card">
+          <div class="dl-head">
+            <span class="dl-os">macOS</span>
+            <span class="dl-arch">Apple Silicon · arm64</span>
+          </div>
+          <p class="dl-file">StickyInc_0.5.0_aarch64.dmg</p>
+          <a class="dl-btn" href="https://github.com/Astralchemist/stickyinc/releases/latest/download/StickyInc_0.5.0_aarch64.dmg" data-platform="mac">
+            Download .dmg
+          </a>
+          <p class="dl-hint">drag to /Applications · Gatekeeper will warn on first open</p>
+        </li>
+
+        <li class="dl-card">
+          <div class="dl-head">
+            <span class="dl-os">Windows</span>
+            <span class="dl-arch">x64 · installer</span>
+          </div>
+          <p class="dl-file">StickyInc_0.5.0_x64-setup.exe</p>
+          <a class="dl-btn" href="https://github.com/Astralchemist/stickyinc/releases/latest/download/StickyInc_0.5.0_x64-setup.exe" data-platform="win">
+            Download .exe
+          </a>
+          <p class="dl-hint">NSIS installer · SmartScreen warns until v0.6 signing</p>
+        </li>
+
+        <li class="dl-card">
+          <div class="dl-head">
+            <span class="dl-os">Windows</span>
+            <span class="dl-arch">x64 · MSI</span>
+          </div>
+          <p class="dl-file">StickyInc_0.5.0_x64_en-US.msi</p>
+          <a class="dl-btn" href="https://github.com/Astralchemist/stickyinc/releases/latest/download/StickyInc_0.5.0_x64_en-US.msi" data-platform="win">
+            Download .msi
+          </a>
+          <p class="dl-hint">for group-policy deployment</p>
+        </li>
+
+        <li class="dl-card">
+          <div class="dl-head">
+            <span class="dl-os">Linux</span>
+            <span class="dl-arch">Debian · Ubuntu · x86_64</span>
+          </div>
+          <p class="dl-file">StickyInc_0.5.0_amd64.deb</p>
+          <a class="dl-btn" href="https://github.com/Astralchemist/stickyinc/releases/latest/download/StickyInc_0.5.0_amd64.deb" data-platform="linux">
+            Download .deb
+          </a>
+          <p class="dl-hint">sudo dpkg -i StickyInc_0.5.0_amd64.deb</p>
+        </li>
+
+        <li class="dl-card">
+          <div class="dl-head">
+            <span class="dl-os">Linux</span>
+            <span class="dl-arch">Fedora · RHEL · x86_64</span>
+          </div>
+          <p class="dl-file">StickyInc-0.5.0-1.x86_64.rpm</p>
+          <a class="dl-btn" href="https://github.com/Astralchemist/stickyinc/releases/latest/download/StickyInc-0.5.0-1.x86_64.rpm" data-platform="linux">
+            Download .rpm
+          </a>
+          <p class="dl-hint">sudo rpm -i StickyInc-0.5.0-1.x86_64.rpm</p>
+        </li>
+
+        <li class="dl-card">
+          <div class="dl-head">
+            <span class="dl-os">Linux</span>
+            <span class="dl-arch">portable · any distro</span>
+          </div>
+          <p class="dl-file">StickyInc_0.5.0_amd64.AppImage</p>
+          <a class="dl-btn" href="https://github.com/Astralchemist/stickyinc/releases/latest/download/StickyInc_0.5.0_amd64.AppImage" data-platform="linux">
+            Download .AppImage
+          </a>
+          <p class="dl-hint">chmod +x and run — no install needed</p>
+        </li>
+
+        <li class="dl-card dl-source">
+          <div class="dl-head">
+            <span class="dl-os">From source</span>
+            <span class="dl-arch">mac · win · linux</span>
+          </div>
+          <p class="dl-file">git clone + pnpm tauri:dev</p>
+          <a class="dl-btn ghost" href="https://github.com/Astralchemist/stickyinc#dev-running-from-source" data-platform="source">
+            Dev setup →
+          </a>
+          <p class="dl-hint">needs Rust + Node 20+ · hack on the pane live</p>
+        </li>
+      </ul>
+
+      <p class="dl-footer">
+        <a href="https://github.com/Astralchemist/stickyinc/releases/latest" class="dl-all">
+          browse all release assets &amp; changelog →
+        </a>
+      </p>
+    </section>
+
     <section class="why">
-      <h2 class="section-title">Why it exists.</h2>
-      <p class="body-wide">
-        Every other AI overlay is summon-ask-dismiss. You open a floating window,
-        ask a thing, close it, and within an hour the answer has evaporated from
-        your brain and the tab.
-      </p>
-      <p class="body-wide">
-        StickyInc is the inverse. The pane doesn't disappear. It
-        <em>accumulates</em>. The chat is cheap; the commitment graph you build
-        from it over months is what's actually valuable. That graph lives on
-        your machine, in a SQLite file, under your control — not on anyone's
-        server.
-      </p>
-      <p class="body-wide">
-        Swap Claude for GPT tomorrow. Your pane is still there.
-      </p>
+      <p class="kicker">05 · design axioms</p>
+      <h2 class="section-title">What StickyInc will never do.</h2>
+
+      <ul class="axioms">
+        <li>
+          <span class="ax-x" aria-hidden="true">×</span>
+          <span class="ax-body">
+            <strong>no backend.</strong> your chats never hit our servers,
+            because we don't have any. you bring your own LLM key; we bring
+            a binary.
+          </span>
+        </li>
+        <li>
+          <span class="ax-x" aria-hidden="true">×</span>
+          <span class="ax-body">
+            <strong>no chat UI.</strong> Claude Desktop and Claude Code
+            already exist. StickyInc is the canvas they write to, not
+            another window to switch between.
+          </span>
+        </li>
+        <li>
+          <span class="ax-x" aria-hidden="true">×</span>
+          <span class="ax-body">
+            <strong>no cloud sync.</strong> your commitments live in
+            <code>~/.stickyinc/tasks.db</code>. sync it with iCloud,
+            Dropbox, Syncthing, or don't — it's your file.
+          </span>
+        </li>
+        <li>
+          <span class="ax-x" aria-hidden="true">×</span>
+          <span class="ax-body">
+            <strong>no OAuth flow we don't need.</strong> we defer calendar
+            writes to Claude's own Google connector. one less place your
+            tokens live.
+          </span>
+        </li>
+      </ul>
     </section>
 
     <section class="links-row" aria-label="Resources">
       <a href="https://github.com/Astralchemist/stickyinc">github</a>
       <span class="sep">·</span>
       <a href="https://github.com/Astralchemist/stickyinc#readme">docs</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/Astralchemist/stickyinc/releases">releases</a>
       <span class="sep">·</span>
       <a href="https://github.com/Astralchemist/stickyinc/blob/main/LICENSE">mit license</a>
       <span class="sep">·</span>

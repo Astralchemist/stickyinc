@@ -1,92 +1,157 @@
-# StickyInc
+```
+  ███████╗████████╗██╗ ██████╗██╗  ██╗██╗   ██╗    ██╗███╗   ██╗ ██████╗
+  ██╔════╝╚══██╔══╝██║██╔════╝██║ ██╔╝╚██╗ ██╔╝    ██║████╗  ██║██╔════╝
+  ███████╗   ██║   ██║██║     █████╔╝  ╚████╔╝     ██║██╔██╗ ██║██║
+  ╚════██║   ██║   ██║██║     ██╔═██╗   ╚██╔╝      ██║██║╚██╗██║██║
+  ███████║   ██║   ██║╚██████╗██║  ██╗   ██║       ██║██║ ╚████║╚██████╗
+  ╚══════╝   ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝       ╚═╝╚═╝  ╚═══╝ ╚═════╝
 
-A reification layer between LLM conversations and your commitments.
+           ┌─────────────────────────────────────────────────────────┐
+           │  v0.5.0  ·  the setup-wizard release                    │
+           │                                                         │
+           │   ▸ one-click onboarding (pick provider, paste key)     │
+           │   ▸ global ⌘⇧N / Ctrl+Shift+N quick-add window          │
+           │   ▸ tagged release builds for mac · win · linux         │
+           └─────────────────────────────────────────────────────────┘
 
-Chats evaporate. StickyInc makes the decisions stick: tasks, dates, done.
 
-## What it is
+      ┌──────────────────────────┐        ┌──────────────────────────┐
+      │ user ▸ call the dentist  │  MCP   │ ☐ call the dentist       │
+      │        friday afternoon  │ ─────▶ │ ☐ email Sarah            │
+      │ claude ▸ noted, adding.  │  tool  │ ☑ ship v0.5              │
+      └──────────────────────────┘        │ ☐ make it stick          │
+                 │                        └──────────────────────────┘
+             the chat                               the pane
+         evaporates at close           lives in ~/.stickyinc forever
+```
 
-- An **MCP server** that Claude (and any MCP-capable LLM) can write tasks to.
-- A local **SQLite store** at `~/.stickyinc/tasks.db` — yours, client-side, no backend.
-- (v0.2, next) A floating **edge-strip pane** that renders the tasks and lets you tick them off.
+<p align="center">
+  <strong>v0.5.0</strong> · MIT · MCP-first · BYO LLM key · no backend, ever
+</p>
+
+<p align="center">
+  <a href="https://astralchemist.github.io/stickyinc/">Landing page</a> ·
+  <a href="https://github.com/Astralchemist/stickyinc/releases/latest">Download</a> ·
+  <a href="#the-idea">The idea</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#quickstart">Quickstart</a>
+</p>
+
+---
+
+## The idea
+
+Every LLM overlay on the market follows the same shape: **summon → ask → dismiss.** You pop a window, ask a thing, close it, and within an hour the answer has evaporated from your brain and the tab. The model is a disposable oracle; you are the durable storage.
+
+StickyInc inverts that. Chats are cheap and ephemeral; the *commitment graph* you build from them over months — the promises, deadlines, quiet todos you let slip into conversation — is the part that actually compounds. Nobody was storing it.
+
+So StickyInc does two things, and refuses to do anything else:
+
+```
+  1 ▸ catches the commitments
+      ───────────────────────
+      when you tell an LLM "call the dentist friday", an MCP tool
+      call fires and a checkbox appears on your screen. no
+      copy-paste, no "remind me later", no second tab.
+
+  2 ▸ keeps them in front of you
+      ──────────────────────────
+      an 8-pixel strip lives on the right edge of your screen.
+      hover to expand, click to tick off. the file behind it is
+      a local SQLite database you own outright — swap LLMs, swap
+      laptops, the graph comes with you.
+```
+
+Everything else — chat UI, OAuth flows, cloud sync, a mobile app — is *intentionally* out of scope. StickyInc is a reification layer. The LLM is the CPU; the pane is the canvas.
+
+---
 
 ## Architecture
 
 ```
-Claude Desktop ──(MCP tool call)──▶ StickyInc MCP ──▶ ~/.stickyinc/tasks.db ◀── Pane (v0.2)
+ ┌──────────────────┐    MCP stdio    ┌──────────────────┐
+ │  Claude Desktop  │ ───tool call──▶ │  StickyInc MCP   │
+ │   Claude Code    │                 │   (Node, stdio)  │
+ │   any MCP host   │                 └────────┬─────────┘
+ └──────────────────┘                          │ SQL
+                                               ▼
+                                 ┌─────────────────────────┐
+                                 │ ~/.stickyinc/tasks.db   │
+                                 │    (SQLite, yours)      │
+                                 └─────────────┬───────────┘
+                                               │ notify-rs watcher
+                                               ▼
+                                    ┌────────────────────┐
+                                    │   Pane (Tauri)     │
+                                    │ edge-strip, always │
+                                    │ on top, translucent│
+                                    └────────────────────┘
 ```
 
-The pane is a pure view + interaction layer. Claude never talks to the pane directly — they share state through SQLite.
+Claude never talks to the pane directly. They share state through SQLite — one source of truth, nothing to sync, no IPC to break.
 
-## Tools exposed over MCP
+---
 
-| Tool | Purpose |
+## Install
+
+Pre-built binaries ship from every tagged release. Signed and notarized builds arrive in v0.6 (see [SIGNING.md](./SIGNING.md) for the plan).
+
+| Platform | File | Notes |
+|---|---|---|
+| macOS (Apple Silicon) | `StickyInc_0.5.0_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
+| Windows (x64) — installer | `StickyInc_0.5.0_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
+| Windows (x64) — MSI | `StickyInc_0.5.0_x64_en-US.msi` | for group-policy deployment |
+| Linux (Debian/Ubuntu) | `StickyInc_0.5.0_amd64.deb` | `sudo dpkg -i` |
+| Linux (RPM/Fedora) | `StickyInc-0.5.0-1.x86_64.rpm` | `sudo rpm -i` |
+| Linux (portable) | `StickyInc_0.5.0_amd64.AppImage` | `chmod +x` and run |
+
+> **[Grab the latest release →](https://github.com/Astralchemist/stickyinc/releases/latest)**
+
+First launch pops a one-minute setup wizard: pick an LLM provider, paste a key, confirm the MCP registration. No terminal commands.
+
+---
+
+## Quickstart
+
+Already have an installer running? Open any Claude Desktop or Claude Code session and say:
+
+> *I need to call the dentist Friday afternoon.*
+
+The task appears in your pane before Claude finishes its reply.
+
+### Quick-add without a chat
+
+While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A centered input appears — type, hit Enter, done. Inline dates work: `buy bread due:2026-04-25`.
+
+---
+
+## MCP tools
+
+| Tool | What it does |
 |---|---|
 | `add_task` | Add a todo. Optional `due_at` (ISO date). |
-| `add_task_natural` | Parse free text ("call dentist Friday 3pm") into a task via the configured LLM. |
-| `list_tasks` | Return open tasks; silently appends "Done today (N)" so the next turn knows the state. |
-| `list_done` | Return recently completed tasks, with optional archive. |
+| `add_task_natural` | Parse free text ("*call dentist Friday 3pm*") via the configured LLM. |
+| `list_tasks` | Return open tasks; silently appends `Done today (N)` so Claude has state continuity. |
+| `list_done` | Return recently completed tasks, optional archive. |
 | `complete_task` | Mark a task done. |
-| `schedule_event` | Create a dated local task. (Calendar sync is deferred to Claude's own connector — see below.) |
+| `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
 
-## Passive extraction (v0.4)
-
-Opt-in daemon that watches your Claude Code transcripts and auto-surfaces commitments you mention in passing.
-
-```bash
-export OPENROUTER_API_KEY=sk-or-...
-cd ~/stickyinc && pnpm watch
-```
-
-- Tails `~/.claude/projects/**/*.jsonl` (Claude Code session files).
-- For each new **user** turn (add `--assistant` to include Claude's turns too), calls the configured LLM to extract commitments.
-- De-duplicates via content fingerprint — "call the dentist" won't insert twice if the task is still open.
-- Ignores hypotheticals and past tense. Empty extractions are free (no DB write).
-- **Privacy**: every watched turn is sent to your configured LLM provider. The watcher doesn't run by default; you decide when to turn it on.
-
-## Quick-add hotkey (v0.5)
-
-While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A small centered input appears — type, hit Enter, done.
-
-Inline dates work: `buy bread due:2026-04-25` schedules it. For anything fancier, use `add_task_natural` from Claude.
-
-## First time use — one click
-
-Download the installer for your OS from the [latest release](https://github.com/Astralchemist/stickyinc/releases), open it, and follow the on-screen setup wizard.
-
-The wizard:
-
-1. **Pick your LLM** — Claude (direct), Claude via OpenRouter (cheapest), GPT, or any OpenAI-compatible URL. Paste key.
-2. **Validates the key** with a 1-token ping so you find out now, not later.
-3. **Registers with Claude Code** — previews the exact JSON block it's about to add to `~/.claude.json` and asks for confirmation. No silent writes, no terminal commands.
-4. **Optionally** turns on passive commitment extraction.
-
-Setup finishes in under a minute. You can re-run the wizard any time from the `setup` link in the pane footer.
-
-## Dev (running from source)
-
-```bash
-cd ~/stickyinc
-pnpm install
-pnpm dev          # MCP server (stdio)
-# in another terminal:
-cd pane && pnpm tauri:dev
-```
+---
 
 ## LLM providers
 
-`add_task_natural` (and any future LLM-backed tools) work with **any** of:
+`add_task_natural` and the passive extraction daemon work with any of:
 
 | Provider | Get a key | Env var | Default model |
 |---|---|---|---|
 | **OpenRouter** — one key, ~200 models, cheapest per token | [openrouter.ai/keys](https://openrouter.ai/keys) | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-haiku` |
-| **Anthropic** — direct | [console.anthropic.com](https://console.anthropic.com/) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
-| **OpenAI** — direct | [platform.openai.com](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` | `gpt-4o-mini` |
+| **Anthropic** (direct) | [console.anthropic.com](https://console.anthropic.com/) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
+| **OpenAI** (direct) | [platform.openai.com](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` | `gpt-4o-mini` |
 | **OpenAI-compatible** (Groq, Together, Fireworks, Ollama, vLLM…) | — | via config file | — |
 
-**Zero config path:** just `export OPENROUTER_API_KEY=sk-or-...` and run.
+**Zero-config path:** `export OPENROUTER_API_KEY=sk-or-...` and run.
 
-**Config file path:** `~/.stickyinc/llm.json`, any of:
+**Config file path** — `~/.stickyinc/llm.json`:
 
 ```json
 { "provider": "openrouter", "model": "openai/gpt-4.1-mini" }
@@ -98,63 +163,120 @@ cd pane && pnpm tauri:dev
 { "provider": "compat", "base_url": "http://localhost:11434/v1", "model": "llama3.2", "api_key": "ollama" }
 ```
 
-You can also override the model for any env-var path with `STICKYINC_MODEL=…`.
+Override the model on any env-var path with `STICKYINC_MODEL=…`.
 
-**Why OpenRouter?** One credit card, access to Claude / GPT / Gemini / Llama / Mistral / DeepSeek side-by-side. Switch model without code changes. Often 30–50% cheaper than going direct for the same model. Good default for indie users who want "more for less."
+---
+
+## Passive extraction (opt-in)
+
+A daemon that tails your Claude Code transcripts and auto-surfaces commitments you mention in passing.
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+cd ~/stickyinc && pnpm watch
+```
+
+- Watches `~/.claude/projects/**/*.jsonl` (Claude Code session files).
+- For each new **user** turn (add `--assistant` to include Claude's turns), calls the configured LLM to extract commitments.
+- De-dupes via content fingerprint — "*call the dentist*" won't insert twice if still open.
+- Ignores hypotheticals and past tense. Empty extractions are free (no DB write).
+
+**Privacy:** every watched turn is sent to your configured LLM provider. Off by default; you decide when to turn it on.
+
+---
 
 ## Calendar — by design, we defer to Claude
 
-StickyInc intentionally doesn't ship its own Google OAuth flow. It's the single
-hardest setup step in the entire product surface, and Claude Desktop already
-has a battle-tested Google Calendar connector built in.
+StickyInc intentionally doesn't ship its own Google OAuth flow. It's the single hardest setup step in the entire product surface, and Claude Desktop already has a battle-tested Google Calendar connector built in.
 
-So: when you want a real calendar event, ask Claude in the same turn. `schedule_event`
-stores the dated task in StickyInc; Claude creates the calendar entry via its own
-connector. One less thing for you to set up, one less token to leak.
+When you want a real calendar event, ask Claude in the same turn. `schedule_event` stores the dated task in StickyInc; Claude creates the calendar entry via its own connector. One less thing for you to set up, one less place your tokens live.
 
-## Design decisions
+---
 
-- **BYO LLM key / subscription** — no backend, no token costs on our side.
-- **Client-side only** — conversations never leave your device.
-- **Local SQLite** — user syncs via iCloud/Dropbox if they want.
-- **MCP-first** — StickyInc doesn't build a chat UI. It's the canvas Claude writes to.
+## Design axioms
 
-## v0.2 — The floating pane (Tauri)
-
-Located at `pane/`. Rust + vanilla TS.
-
-```bash
-cd ~/stickyinc/pane
-pnpm install
-pnpm tauri:dev     # dev (always-on-top, right-edge strip, hover to expand)
-pnpm tauri:build   # production bundle
+```
+  ┌─ BYO LLM key / subscription ───────────────────────────────┐
+  │  no backend, no token costs on our side, no rate-limit     │
+  │  theatre. whatever key you already have, we use.           │
+  └────────────────────────────────────────────────────────────┘
+  ┌─ client-side only ─────────────────────────────────────────┐
+  │  conversations never leave your device except to the       │
+  │  provider you chose. everything else is local.             │
+  └────────────────────────────────────────────────────────────┘
+  ┌─ local SQLite ─────────────────────────────────────────────┐
+  │  ~/.stickyinc/tasks.db. sync via iCloud / Dropbox /        │
+  │  Syncthing if you want. or don't. the file is yours.       │
+  └────────────────────────────────────────────────────────────┘
+  ┌─ MCP-first ────────────────────────────────────────────────┐
+  │  StickyInc doesn't build a chat UI. it's the canvas        │
+  │  Claude writes to.                                         │
+  └────────────────────────────────────────────────────────────┘
+  ┌─ one source of truth ──────────────────────────────────────┐
+  │  the DB. pane and MCP both read/write it; no IPC           │
+  │  between them; nothing to keep in sync.                    │
+  └────────────────────────────────────────────────────────────┘
 ```
 
-**Linux dev deps** (Ubuntu 25.04):
+---
+
+## Dev (running from source)
+
+```bash
+git clone https://github.com/Astralchemist/stickyinc
+cd stickyinc
+pnpm install
+pnpm dev              # MCP server (stdio)
+
+# in another terminal
+cd pane
+pnpm install
+pnpm tauri:dev        # pane (edge-strip, always on top)
+```
+
+**Linux dev deps** (Ubuntu 22.04+):
 ```bash
 sudo apt-get install -y \
   libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
   librsvg2-dev libxdo-dev libssl-dev build-essential curl wget file
 ```
 
-macOS and Windows builds need only Rust + Node. Ship to those via CI.
+macOS and Windows need only Rust + Node. Release builds run through GitHub Actions — see `.github/workflows/build.yml`.
 
-### How the pane works
-- Always-on-top, transparent, frameless, skipTaskbar. 8px strip glued to the right edge by default.
-- Hover → window resizes to 320px, pane slides in.
-- Checkbox click → Rust `complete_task` command → SQLite UPDATE → watcher emits `tasks-changed` → UI re-fetches.
+---
+
+## How the pane actually works
+
+- Always-on-top, transparent, frameless, `skipTaskbar`. 8px strip glued to the right edge by default.
+- Hover → window resizes to 320px, pane slides in. Click-through everywhere else.
+- Checkbox click → Rust `complete_task` command → SQLite UPDATE → `notify-rs` watcher emits `tasks-changed` → UI re-fetches.
 - Red dot on the strip when any open task is past its `due_at`.
-- Same `~/.stickyinc/tasks.db` as the MCP server. One source of truth.
+- Reads/writes the same `~/.stickyinc/tasks.db` as the MCP server. One source of truth.
+
+---
 
 ## Roadmap
 
-- [x] v0.1 — MCP server, SQLite, four tools.
-- [x] v0.2 — Tauri edge-strip pane.
-- [x] v0.3 — Google Calendar, Recently-done + Archive drawer, `list_done` tool, GitHub Actions CI, `LLMProvider` (Anthropic + OpenRouter + OpenAI-compat), `add_task_natural`.
-- [x] v0.4 — Passive extraction daemon (`pnpm watch`), fingerprint dedup, done-today feedback in `list_tasks`.
-- [x] v0.5 — Global hotkey ⌘⇧N quick-add window, full icon set (macOS/Windows/Linux/iOS/Android), CI signing hooks (see [`SIGNING.md`](./SIGNING.md)).
-- [ ] v0.5 — Menu-bar quick-add (⌘⇧N), icon set, signed/notarized macOS + Windows installers via CI.
+```
+  [x] v0.1   MCP server, SQLite, four tools.
+  [x] v0.2   Tauri edge-strip pane.
+  [x] v0.3   Recently-done + Archive drawer, list_done, CI,
+             LLMProvider (Anthropic + OpenRouter + OpenAI-compat),
+             add_task_natural.
+  [x] v0.4   Passive extraction daemon, fingerprint dedup,
+             done-today feedback in list_tasks.
+  [x] v0.5   Global ⌘⇧N quick-add window, full icon set,
+             one-click setup wizard, tagged release builds
+             for macOS / Windows / Linux.
+  [ ] v0.6   Signed + notarized macOS installer, signed MSI
+             on Windows (see SIGNING.md), auto-updater,
+             menu-bar quick-add.
+  [ ] v0.7   Per-project tasks (separate DBs per Claude Code
+             workspace), weekly digest.
+```
+
+---
 
 ## License
 
-MIT.
+MIT. Do what you want.
