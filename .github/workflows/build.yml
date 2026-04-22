@@ -77,12 +77,21 @@ jobs:
         working-directory: pane
         run: pnpm install --frozen-lockfile
 
-      # Signing env is intentionally absent here — see SIGNING.md.
-      # tauri-action treats empty APPLE_CERTIFICATE as "try to sign" and fails
-      # importing an empty cert, so we only wire them in after you add secrets.
+      # Apple code-signing env is still intentionally absent here — see
+      # SIGNING.md. tauri-action treats empty APPLE_CERTIFICATE as "try to
+      # sign" and fails importing an empty cert, so we only wire them in
+      # after you add those secrets.
+      #
+      # The updater-signing env vars (TAURI_SIGNING_PRIVATE_KEY*) are
+      # safe-if-empty: tauri-action just skips signing the .sig files and
+      # latest.json, and the in-app updater falls back to "no manifest"
+      # gracefully. So we pass them unconditionally; the updater starts
+      # working the moment you add the secret.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: pane
           args: --target ${{ matrix.target }}
@@ -90,3 +99,4 @@ jobs:
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('StickyInc {0}', github.ref_name) || '' }}
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true

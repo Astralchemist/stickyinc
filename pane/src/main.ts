@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/window";
 import { currentMonitor } from "@tauri-apps/api/window";
+import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 interface Task {
   id: number;
@@ -329,6 +331,45 @@ async function bootstrap(): Promise<void> {
 
   setInterval(refresh, 3000);
   setInterval(() => { void checkDueCrossings(); }, DUE_POLL_MS);
+
+  // Background update check — 15s after launch so it doesn't fight the
+  // setup bulge for screen real estate. Silent on network errors / 404
+  // (e.g. running a dev build with no signed release yet).
+  setTimeout(() => { void runUpdateCheck(); }, 15_000);
+}
+
+async function runUpdateCheck(): Promise<void> {
+  let update: Update | null = null;
+  try {
+    update = await checkForUpdate();
+  } catch {
+    return; // offline, DNS hiccup, manifest missing — silent
+  }
+  if (!update?.available) return;
+
+  const version = update.version;
+  void showBulge(`Update to v${version} →`, {
+    icon: "↑",
+    onClick: () => void installUpdate(update!),
+  });
+}
+
+async function installUpdate(update: Update): Promise<void> {
+  try {
+    await update.downloadAndInstall();
+    // Give the install a moment, then restart. downloadAndInstall is
+    // supposed to exit the process on Windows MSI; on macOS/Linux we
+    // relaunch to pick up the new binary.
+    await relaunch();
+  } catch (err) {
+    console.error("update failed", err);
+    void showBulge(`Update failed — try manually`, {
+      icon: "!",
+      onClick: () => {
+        void invoke("open_wizard"); // no dedicated "about" yet; wizard closes cleanly
+      },
+    });
+  }
 }
 
 bootstrap();
