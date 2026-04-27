@@ -90,12 +90,16 @@ jobs:
       # SIGNING.md. tauri-action treats empty APPLE_CERTIFICATE as "try to
       # sign" and fails importing an empty cert.
       #
-      # Updater signing is opt-in: tauri-action chokes on an empty (vs
-      # unset) TAURI_SIGNING_PRIVATE_KEY with "Missing comment in secret
-      # key". This step copies the secret into $GITHUB_ENV only when it's
-      # non-empty, so absent secrets leave the env var unset and tauri
-      # bundles unsigned. Set the two secrets per SIGNING.md → "Releasing
-      # with the auto-updater" to flip on signed updater artifacts.
+      # Updater signing is opt-in. tauri.conf.json keeps
+      # createUpdaterArtifacts=false by default, because Tauri refuses to
+      # bundle the .tar.gz updater artifact unless a matching
+      # TAURI_SIGNING_PRIVATE_KEY is set. When the secret is present we
+      # write a small JSON override (consumed via `tauri build --config`)
+      # that flips createUpdaterArtifacts on, and pipe the secret + its
+      # password into $GITHUB_ENV so tauri-action sees them. Absent
+      # secrets leave both unset and tauri bundles unsigned, no updater
+      # artifacts. Set the two secrets per SIGNING.md → "Releasing with
+      # the auto-updater" to flip the signed-updater flow on.
       - name: Configure updater signing
         shell: bash
         env:
@@ -109,10 +113,15 @@ jobs:
               echo "__STICKY_EOF__"
               echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$SIGNING_PASSWORD"
               echo "STICKYINC_INCLUDE_UPDATER_JSON=true"
+              echo "STICKYINC_TAURI_EXTRA_ARGS=--config src-tauri/tauri.signed-updater.conf.json"
             } >> "$GITHUB_ENV"
+            echo '{"bundle":{"createUpdaterArtifacts":true}}' > pane/src-tauri/tauri.signed-updater.conf.json
             echo "updater signing: enabled"
           else
-            echo "STICKYINC_INCLUDE_UPDATER_JSON=false" >> "$GITHUB_ENV"
+            {
+              echo "STICKYINC_INCLUDE_UPDATER_JSON=false"
+              echo "STICKYINC_TAURI_EXTRA_ARGS="
+            } >> "$GITHUB_ENV"
             echo "updater signing: disabled (no TAURI_SIGNING_PRIVATE_KEY secret)"
           fi
 
@@ -121,7 +130,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: pane
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} ${{ env.STICKYINC_TAURI_EXTRA_ARGS }}
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('StickyInc {0}', github.ref_name) || '' }}
           releaseDraft: false
