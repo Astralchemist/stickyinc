@@ -73,6 +73,15 @@ jobs:
         with:
           workspaces: pane/src-tauri -> target
 
+      # The pane's tauri build resolves bundled MCP code via the Tauri
+      # `bundle.resources` glob (../../dist/**/*) and runs the root
+      # `pnpm -C .. exec tsc` as its beforeBuildCommand, so the root
+      # node_modules must be in place before tauri-action runs.
+      # `--ignore-scripts` skips better-sqlite3's native rebuild — we only
+      # need the TypeScript types here, not the runtime native binary.
+      - name: Install MCP root deps
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
       - name: Install pane frontend deps
         working-directory: pane
         run: pnpm install --frozen-lockfile
@@ -81,17 +90,35 @@ jobs:
       # SIGNING.md. tauri-action treats empty APPLE_CERTIFICATE as "try to
       # sign" and fails importing an empty cert.
       #
-      # Updater signing is enabled. The TAURI_SIGNING_PRIVATE_KEY +
-      # TAURI_SIGNING_PRIVATE_KEY_PASSWORD secrets must be set in the repo
-      # (see SIGNING.md → "Releasing with the auto-updater"); without them
-      # tauri-action fails with "Missing comment in secret key". The matching
-      # public key lives in pane/src-tauri/tauri.conf.json under
-      # plugins.updater.pubkey.
+      # Updater signing is opt-in: tauri-action chokes on an empty (vs
+      # unset) TAURI_SIGNING_PRIVATE_KEY with "Missing comment in secret
+      # key". This step copies the secret into $GITHUB_ENV only when it's
+      # non-empty, so absent secrets leave the env var unset and tauri
+      # bundles unsigned. Set the two secrets per SIGNING.md → "Releasing
+      # with the auto-updater" to flip on signed updater artifacts.
+      - name: Configure updater signing
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$SIGNING_KEY" ]; then
+            {
+              echo "TAURI_SIGNING_PRIVATE_KEY<<__STICKY_EOF__"
+              printf '%s\n' "$SIGNING_KEY"
+              echo "__STICKY_EOF__"
+              echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$SIGNING_PASSWORD"
+              echo "STICKYINC_INCLUDE_UPDATER_JSON=true"
+            } >> "$GITHUB_ENV"
+            echo "updater signing: enabled"
+          else
+            echo "STICKYINC_INCLUDE_UPDATER_JSON=false" >> "$GITHUB_ENV"
+            echo "updater signing: disabled (no TAURI_SIGNING_PRIVATE_KEY secret)"
+          fi
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: pane
           args: --target ${{ matrix.target }}
@@ -99,4 +126,4 @@ jobs:
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('StickyInc {0}', github.ref_name) || '' }}
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true
+          includeUpdaterJson: ${{ env.STICKYINC_INCLUDE_UPDATER_JSON == 'true' }}

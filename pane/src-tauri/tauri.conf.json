@@ -5,7 +5,7 @@
   "identifier": "app.stickyinc.pane",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm -C .. build && pnpm build",
+    "beforeBuildCommand": "pnpm -C .. exec tsc && pnpm build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
