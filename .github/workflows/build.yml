@@ -81,21 +81,17 @@ jobs:
       # SIGNING.md. tauri-action treats empty APPLE_CERTIFICATE as "try to
       # sign" and fails importing an empty cert.
       #
-      # Updater signing is ALSO opt-in: passing an empty
-      # TAURI_SIGNING_PRIVATE_KEY makes Tauri try to parse nothing as a
-      # minisign key and fail with "Missing comment in secret key".
-      # To enable updater-signed builds:
-      #   1. Add the TAURI_SIGNING_PRIVATE_KEY secret (contents of
-      #      ~/.stickyinc/updater-keys/stickyinc.key) to this repo.
-      #   2. Flip `createUpdaterArtifacts` to true in
-      #      pane/src-tauri/tauri.conf.json.
-      #   3. Uncomment the two env lines below and the includeUpdaterJson
-      #      line at the bottom of this step.
+      # Updater signing is enabled. The TAURI_SIGNING_PRIVATE_KEY +
+      # TAURI_SIGNING_PRIVATE_KEY_PASSWORD secrets must be set in the repo
+      # (see SIGNING.md → "Releasing with the auto-updater"); without them
+      # tauri-action fails with "Missing comment in secret key". The matching
+      # public key lives in pane/src-tauri/tauri.conf.json under
+      # plugins.updater.pubkey.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: pane
           args: --target ${{ matrix.target }}
@@ -103,4 +99,4 @@ jobs:
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('StickyInc {0}', github.ref_name) || '' }}
           releaseDraft: false
           prerelease: false
-          # includeUpdaterJson: true
+          includeUpdaterJson: true

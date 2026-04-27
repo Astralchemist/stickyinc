@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use tauri::path::BaseDirectory;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 fn stickyinc_dir() -> PathBuf {
@@ -85,28 +86,81 @@ pub struct SubscriptionDetection {
     pub local: Option<DetectedLocal>,
 }
 
-fn binary_on_path(name: &str) -> bool {
-    let path = match std::env::var_os("PATH") {
-        Some(p) => p,
-        None => return false,
-    };
-    let exts: &[&str] = if cfg!(windows) {
-        &[".exe", ".cmd", ".bat", ""]
-    } else {
-        &[""]
-    };
-    for dir in std::env::split_paths(&path) {
-        if dir.as_os_str().is_empty() {
-            continue;
-        }
-        for ext in exts {
-            let candidate = dir.join(format!("{}{}", name, ext));
-            if candidate.exists() {
-                return true;
+/// Resolve `name` to an absolute path, returning `None` if it isn't installed.
+///
+/// Apps launched from Finder/Dock/Spotlight on macOS inherit a stripped PATH
+/// (`/usr/bin:/bin:/usr/sbin:/sbin`) that doesn't include the user's npm /
+/// Homebrew / asdf / volta dirs — so a plain PATH walk can't see `claude`,
+/// `codex`, `gemini`, or even `node` for users who installed them via tools
+/// other than the system package manager. The fallback shells out to
+/// `/bin/sh -lc 'command -v <name>'` so a real login shell sources the user's
+/// rc files and tells us where the binary actually lives.
+fn resolve_binary(name: &str) -> Option<String> {
+    if let Some(path) = std::env::var_os("PATH") {
+        let exts: &[&str] = if cfg!(windows) {
+            &[".exe", ".cmd", ".bat", ""]
+        } else {
+            &[""]
+        };
+        for dir in std::env::split_paths(&path) {
+            if dir.as_os_str().is_empty() {
+                continue;
+            }
+            for ext in exts {
+                let candidate = dir.join(format!("{}{}", name, ext));
+                if candidate.exists() {
+                    return Some(candidate.to_string_lossy().to_string());
+                }
             }
         }
     }
-    false
+
+    #[cfg(target_os = "macos")]
+    {
+        return shell_resolve(name);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = name;
+        None
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn shell_resolve(name: &str) -> Option<String> {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return None;
+    }
+    use std::process::{Command, Stdio};
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    let (tx, rx) = mpsc::channel();
+    let cmd_str = format!("command -v {}", name);
+    thread::spawn(move || {
+        let result = Command::new("/bin/sh")
+            .arg("-lc")
+            .arg(cmd_str)
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .output();
+        let _ = tx.send(result);
+    });
+    match rx.recv_timeout(Duration::from_secs(1)) {
+        Ok(Ok(out)) if out.status.success() => {
+            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        }
+        _ => None,
+    }
 }
 
 async fn probe_local_endpoint(
@@ -167,24 +221,50 @@ pub async fn wizard_detect_subscriptions() -> SubscriptionDetection {
         None
     };
     SubscriptionDetection {
-        claude_code: binary_on_path("claude"),
-        codex: binary_on_path("codex"),
-        gemini: binary_on_path("gemini"),
+        claude_code: resolve_binary("claude").is_some(),
+        codex: resolve_binary("codex").is_some(),
+        gemini: resolve_binary("gemini").is_some(),
         local,
     }
 }
 
-fn mcp_default_command() -> (String, Vec<String>) {
-    // For v0.5: use node + the repo's built MCP entry. For v0.6 we bundle a
-    // sidecar binary and drop the node requirement entirely.
-    let home = dirs::home_dir().unwrap_or_default();
-    let mcp = home.join("stickyinc").join("dist").join("index.js");
-    ("node".to_string(), vec![mcp.to_string_lossy().to_string()])
+/// Resolve the MCP server command we'll register in `~/.claude.json`.
+///
+/// Production builds bundle the Node MCP entry as a Tauri resource (configured
+/// in tauri.conf.json under `bundle.resources`); we resolve that path through
+/// the AppHandle. Dev builds fall back to `~/stickyinc/dist/index.js`, which
+/// is the path users running from a clone already have.
+///
+/// Errors out if `node` itself isn't installed — registering the entry would
+/// silently fail at runtime otherwise, which is the v0.5.1 "subscription mode
+/// doesn't work" bug.
+fn mcp_default_command(app: &tauri::AppHandle) -> Result<(String, Vec<String>), String> {
+    let node = resolve_binary("node").ok_or_else(|| {
+        "Node.js 20+ required — install from https://nodejs.org and re-run setup.".to_string()
+    })?;
+
+    let bundled = app
+        .path()
+        .resolve("dist/index.js", BaseDirectory::Resource)
+        .ok()
+        .filter(|p| p.exists());
+    let mcp_path = match bundled {
+        Some(p) => p.to_string_lossy().to_string(),
+        None => {
+            let home = dirs::home_dir().unwrap_or_default();
+            home.join("stickyinc")
+                .join("dist")
+                .join("index.js")
+                .to_string_lossy()
+                .to_string()
+        }
+    };
+    Ok((node, vec![mcp_path]))
 }
 
-fn mcp_proposed_entry() -> serde_json::Value {
-    let (cmd, args) = mcp_default_command();
-    serde_json::json!({ "command": cmd, "args": args })
+fn mcp_proposed_entry(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let (cmd, args) = mcp_default_command(app)?;
+    Ok(serde_json::json!({ "command": cmd, "args": args }))
 }
 
 fn render_pretty_diff(state: &str, existing: Option<&serde_json::Value>, proposed: &serde_json::Value) -> String {
@@ -227,9 +307,9 @@ fn html_escape(s: &str) -> String {
 }
 
 #[tauri::command]
-pub fn wizard_diff_claude_json() -> Result<ClaudeDiff, String> {
+pub fn wizard_diff_claude_json(app: tauri::AppHandle) -> Result<ClaudeDiff, String> {
     let path = claude_config_path();
-    let proposed = mcp_proposed_entry();
+    let proposed = mcp_proposed_entry(&app)?;
     let cfg = read_json(&path);
     let existing = cfg
         .get("mcpServers")
@@ -251,10 +331,11 @@ pub fn wizard_diff_claude_json() -> Result<ClaudeDiff, String> {
 }
 
 #[tauri::command]
-pub fn wizard_register_mcp(resolution: String) -> Result<(), String> {
+pub fn wizard_register_mcp(app: tauri::AppHandle, resolution: String) -> Result<(), String> {
     if resolution == "skip" {
         return Ok(());
     }
+    let proposed = mcp_proposed_entry(&app)?;
     let path = claude_config_path();
     let mut cfg = read_json(&path);
     if !cfg.is_object() {
@@ -268,7 +349,7 @@ pub fn wizard_register_mcp(resolution: String) -> Result<(), String> {
         *servers = serde_json::json!({});
     }
     let servers = servers.as_object_mut().unwrap();
-    servers.insert("stickyinc".to_string(), mcp_proposed_entry());
+    servers.insert("stickyinc".to_string(), proposed);
     write_json_secure(&path, &cfg).map_err(|e| e.to_string())
 }
 

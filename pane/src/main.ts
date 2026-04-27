@@ -343,8 +343,19 @@ async function runUpdateCheck(): Promise<void> {
   let update: Update | null = null;
   try {
     update = await checkForUpdate();
-  } catch {
-    return; // offline, DNS hiccup, manifest missing — silent
+  } catch (err) {
+    // 404 from GitHub means we just haven't published a signed `latest.json`
+    // for the user's current track yet (common on dev builds and for the
+    // window between a tag push and the build artifacts uploading). Silent.
+    // Anything else — DNS, signature mismatch, malformed manifest — is worth
+    // a console warning so it's debuggable from devtools, but we still keep
+    // the user-facing UI quiet so transient network issues don't fight the
+    // bulge for screen real estate.
+    const message = err instanceof Error ? err.message : String(err);
+    if (!/\b404\b/.test(message)) {
+      console.warn("update check failed:", message);
+    }
+    return;
   }
   if (!update?.available) return;
 

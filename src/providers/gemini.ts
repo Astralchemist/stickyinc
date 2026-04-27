@@ -1,23 +1,13 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { delimiter, join } from "node:path";
 import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
+import { whichBinary } from "./which.js";
 
 /**
  * Locate the `gemini` CLI (Google Gemini CLI) on PATH. Returns the
  * absolute path, or null if it's not installed.
  */
 export function findGeminiBinary(): string | null {
-  const paths = (process.env.PATH ?? "").split(delimiter);
-  const exts = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
-  for (const dir of paths) {
-    if (!dir) continue;
-    for (const ext of exts) {
-      const candidate = join(dir, "gemini" + ext);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
+  return whichBinary("gemini");
 }
 
 interface GeminiConfig {

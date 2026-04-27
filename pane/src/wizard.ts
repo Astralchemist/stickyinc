@@ -273,13 +273,23 @@ function renderDiff(diff: ClaudeDiff): void {
 async function loadClaudeDiff(): Promise<void> {
   $("#claude-state").textContent = "Loading…";
   $("#claude-diff").textContent = "";
+  $("#claude-conflict").hidden = true;
+  $("#claude-actions").hidden = false;
   try {
     const diff = await invoke<ClaudeDiff>("wizard_diff_claude_json");
     state.claudeDiff = diff;
     renderDiff(diff);
   } catch (err) {
-    $("#claude-state").textContent = "error";
-    $("#claude-diff").textContent = err instanceof Error ? err.message : String(err);
+    // Most common surfaced error: node isn't installed, so registering an MCP
+    // entry would point at a binary Claude can't run. Render the message
+    // verbatim (the Rust side picks something user-actionable like "Node.js
+    // 20+ required — install from https://nodejs.org") and hide the Add
+    // button so the user can't write a broken entry.
+    state.claudeDiff = null;
+    $("#claude-state").textContent = "can't continue";
+    $("#claude-diff").textContent =
+      err instanceof Error ? err.message : String(err);
+    $("#claude-actions").hidden = true;
   }
 }
 

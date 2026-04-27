@@ -7,7 +7,7 @@
   ╚══════╝   ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝       ╚═╝╚═╝  ╚═══╝ ╚═════╝
 
            ┌─────────────────────────────────────────────────────────┐
-           │  v0.5.1  ·  the subscription-mode release               │
+           │  v0.5.2  ·  the subscription-mode release               │
            │                                                         │
            │   ▸ zero-key auto-detect for claude / codex / gemini    │
            │   ▸ Ollama + LM Studio localhost fallback, free         │
@@ -27,7 +27,7 @@
 ```
 
 <p align="center">
-  <strong>v0.5.1</strong> · MIT · MCP-first · no backend, ever<br />
+  <strong>v0.5.2</strong> · MIT · MCP-first · no backend, ever<br />
   <em>Bring your own LLM key — or piggyback on Claude Code, ChatGPT, Gemini, or local Ollama. Zero config either way.</em>
 </p>
 

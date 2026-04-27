@@ -1,6 +1,6 @@
 {
   "name": "stickyinc",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "A reification layer between LLM conversations and your commitments. MCP server + floating pane.",
   "type": "module",
   "bin": {

@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { delimiter, join } from "node:path";
 import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
+import { whichBinary } from "./which.js";
 
 /**
  * Locate the `claude` CLI on PATH. Returns the absolute path, or null if
@@ -9,16 +8,7 @@ import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
  * the lifetime of the process, and resolveLLMProvider() is itself sync.
  */
 export function findClaudeBinary(): string | null {
-  const paths = (process.env.PATH ?? "").split(delimiter);
-  const exts = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
-  for (const dir of paths) {
-    if (!dir) continue;
-    for (const ext of exts) {
-      const candidate = join(dir, "claude" + ext);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
+  return whichBinary("claude");
 }
 
 interface ClaudeCodeConfig {

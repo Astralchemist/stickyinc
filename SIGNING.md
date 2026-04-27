@@ -35,15 +35,32 @@ Next tag push → CI produces a signed + notarized `.dmg`.
    ```
 4. Add GitHub secrets for the cert and wire them into a custom workflow step using `signtool sign`. (tauri-action itself doesn't handle Windows code signing directly; see the [Tauri docs](https://v2.tauri.app/distribute/sign/windows/) for the official approach.)
 
-## Tauri auto-updater (optional, any OS)
+## Releasing with the auto-updater
 
-For in-app auto-updates:
+The pane checks `https://github.com/Astralchemist/stickyinc/releases/latest/download/latest.json` ~15s after launch and surfaces a one-line bulge if a newer signed bundle is available. To produce a tagged release that this update flow will accept, the CI build must sign the bundle with the same minisign keypair whose public half ships inside the binary.
 
-```bash
-cd pane && pnpm tauri signer generate -w ~/.tauri/stickyinc.key
-```
+### One-time setup (per repo)
 
-Add the **private** key (`~/.tauri/stickyinc.key`) to GitHub secrets as `TAURI_SIGNING_PRIVATE_KEY`, and its password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Ship the **public** key inside `tauri.conf.json` under `plugins.updater.pubkey`.
+1. **Generate a keypair.** From a checkout of this repo:
+   ```bash
+   cd pane && pnpm tauri signer generate -w ~/.tauri/stickyinc.key
+   ```
+   Pick a strong password when prompted. This produces two files:
+   - `~/.tauri/stickyinc.key` — the **private** key (keep this secret).
+   - `~/.tauri/stickyinc.key.pub` — the **public** key.
+
+2. **Ship the public half.** Copy the entire contents of `~/.tauri/stickyinc.key.pub` into `pane/src-tauri/tauri.conf.json` under `plugins.updater.pubkey`, replacing whatever placeholder is there. Commit that change. Every installed binary will refuse to apply an update that wasn't signed by the matching private key, so a leaked or rotated key means every installed user is stuck on their current version until they reinstall.
+
+3. **Add the private half as GitHub Actions secrets.** Repo → Settings → Secrets and variables → Actions → New repository secret. Add two:
+
+   | Secret | Value |
+   |---|---|
+   | `TAURI_SIGNING_PRIVATE_KEY` | full contents of `~/.tauri/stickyinc.key` (the file, not the path) |
+   | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | the password you typed during `signer generate` |
+
+   The workflow at `.github/workflows/build.yml` reads both and passes them to tauri-action. Empty values cause tauri-action to fail with `Missing comment in secret key` — keep both set or unset together.
+
+4. **Cut a release.** Push a tag (`git tag v0.5.2 && git push --tags`); the workflow builds signed installers, generates `latest.json`, and uploads everything to the release. From this point installed clients will pick it up on next launch.
 
 ## Until you set these up
 
