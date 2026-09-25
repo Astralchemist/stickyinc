@@ -17,8 +17,8 @@
     "start": "node dist/index.js",
     "watch": "tsx src/watch-cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/*.test.ts",
-    "prepublishOnly": "tsc --noEmit && tsx --test src/*.test.ts && node scripts/bundle.mjs && node smoke.mjs dist/bundle/stickyinc-mcp.mjs"
+    "test": "tsx --test src/*.test.ts pane/src/*.test.ts",
+    "prepublishOnly": "tsc --noEmit && tsx --test src/*.test.ts pane/src/*.test.ts && node scripts/bundle.mjs && node smoke.mjs dist/bundle/stickyinc-mcp.mjs"
   },
   "keywords": [
     "mcp",

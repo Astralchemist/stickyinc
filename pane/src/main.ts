@@ -4,7 +4,9 @@ import { getCurrentWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/
 import { currentMonitor } from "@tauri-apps/api/window";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { calendarFile } from "./calendar";
+import { reminderBody, remindersDue, tomorrowMorning } from "./reminders";
 
 interface Task {
   id: number;
@@ -30,6 +32,11 @@ const PANE_H_FRAC = 1.0;
 const BULGE_HOLD_MS = 3500;
 const BULGE_COOLDOWN_MS = 30_000;
 const DUE_POLL_MS = 30_000;
+const REMINDER_POLL_MS = 60_000;
+/** Reminder keys already sent (see reminders.ts), kept across restarts. */
+const REMINDERS_SENT_KEY = "stickyinc.remindersSent";
+/** Due within this long (or overdue): the task's row offers a snooze. */
+const SNOOZE_WINDOW_MS = 24 * 3_600_000;
 const IS_MAC = navigator.userAgent.includes("Mac");
 const TOUR_SEEN_KEY = "stickyinc.tourSeen";
 /** The first-run tour: what the pane is and the four things to know. */
@@ -67,6 +74,8 @@ let knownTaskIds: Set<number> | null = null;
 let lastDueCheck = Date.now();
 let seededSetupBulge = false;
 let provenanceTimer: number | null = null;
+/** Whether the OS lets us notify; asked once, when the first reminder is due. */
+let notificationsAllowed: boolean | null = null;
 /** What the calendar file was last written from; unchanged tasks, no write. */
 let calendarKey = "";
 /** Index into TOUR while the tour is showing. */
@@ -234,6 +243,7 @@ function renderOpen(tasks: Task[]): void {
       const due = document.createElement("span");
       due.className = "due" + (isOverdue(task.due_at) ? " overdue" : "");
       due.textContent = formatDue(task.due_at);
+      if (Date.parse(task.due_at) - Date.now() < SNOOZE_WINDOW_MS) due.append(snoozeControls(task));
       text.appendChild(due);
     }
 
@@ -342,11 +352,83 @@ async function checkDueCrossings(): Promise<void> {
     if (!t.due_at) continue;
     const due = new Date(t.due_at).getTime();
     if (due > lastDueCheck && due <= now) {
-      void showBulge(`Due now: ${clip(t.text)}`, { icon: "!" });
+      // Clickable: opens the pane, where the task's row offers a snooze.
+      void showBulge(`Due now: ${clip(t.text)}`, { icon: "!", onClick: () => void setMode("expanded") });
       break; // one bulge per tick even if multiple fired together
     }
   }
   lastDueCheck = now;
+}
+
+function loadRemindersSent(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REMINDERS_SENT_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+async function canNotify(): Promise<boolean> {
+  if (notificationsAllowed === null) {
+    notificationsAllowed =
+      (await isPermissionGranted().catch(() => false)) ||
+      (await requestPermission().catch(() => "denied")) === "granted";
+  }
+  return notificationsAllowed;
+}
+
+/**
+ * Native notifications a day before each dated task is due and when it's
+ * due, checked every minute. The OS decides whether they show (Do Not
+ * Disturb, Focus, notification settings); the pane only sends them.
+ */
+async function checkReminders(): Promise<void> {
+  if (!setupComplete) return;
+  const open = await invoke<Task[]>("list_open_tasks").catch(() => null);
+  if (!open) return;
+  const sent = loadRemindersSent();
+  // Forget finished tasks' reminders so the list doesn't grow forever.
+  const uuids = new Set(open.map((t) => t.uuid));
+  for (const key of sent) if (!uuids.has(key.split("|")[0])) sent.delete(key);
+
+  const due = remindersDue(open, Date.now(), sent);
+  if (due.length > 0 && (await canNotify())) {
+    for (const r of due) sendNotification({ title: r.task.text, body: reminderBody(r) });
+  }
+  // Marked sent even if notifications are off, so turning them on later
+  // doesn't bring a burst of old ones.
+  for (const r of due) sent.add(r.key);
+  try {
+    localStorage.setItem(REMINDERS_SENT_KEY, JSON.stringify([...sent]));
+  } catch {
+    /* may repeat after a restart; harmless */
+  }
+}
+
+/** "Snooze 1h · tomorrow" for a task that's due soon or overdue; shown on hover. */
+function snoozeControls(task: Task): HTMLElement {
+  const wrap = document.createElement("span");
+  wrap.className = "snooze";
+  wrap.append("Snooze");
+  const options: [string, () => Date][] = [
+    ["1h", () => new Date(Date.now() + 3_600_000)],
+    ["tomorrow", () => tomorrowMorning()],
+  ];
+  for (const [label, until] of options) {
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.addEventListener("click", async (e) => {
+      e.stopPropagation(); // the row's own click completes the task
+      try {
+        await invoke("snooze_task", { id: task.id, until: until().toISOString() });
+        await refresh();
+      } catch (err) {
+        console.error("snooze failed", err);
+      }
+    });
+    wrap.append(button);
+  }
+  return wrap;
 }
 
 /**
@@ -519,6 +601,8 @@ async function bootstrap(): Promise<void> {
 
   setInterval(refresh, 3000);
   setInterval(() => { void checkDueCrossings(); }, DUE_POLL_MS);
+  void checkReminders();
+  setInterval(() => { void checkReminders(); }, REMINDER_POLL_MS);
 
   // Background update check — 15s after launch so it doesn't fight the
   // setup bulge for screen real estate. Silent on network errors / 404

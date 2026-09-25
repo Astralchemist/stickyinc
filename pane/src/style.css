@@ -281,6 +281,26 @@ li.task.done .text {
 }
 .due.overdue { color: var(--accent); }
 
+/* Snooze, on tasks due within a day or overdue: shown while hovering the
+   row. Its buttons stop the click reaching the row, which would tick it. */
+.snooze {
+  display: none;
+  margin-left: 8px;
+  color: var(--muted);
+}
+li.task:hover .snooze { display: inline; }
+.snooze button {
+  font: inherit;
+  margin-left: 4px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.snooze button:hover { background: rgba(255, 255, 255, 0.08); }
+
 /* Provenance card: where a task came from, after resting on it. It floats
    over the rows below (or above) and ignores the pointer, so nothing moves
    under the cursor and clicks still reach the task. */

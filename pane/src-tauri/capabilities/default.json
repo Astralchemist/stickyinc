@@ -20,6 +20,7 @@
     "opener:allow-open-url",
     "updater:default",
     "process:allow-restart",
-    "process:allow-exit"
+    "process:allow-exit",
+    "notification:default"
   ]
 }

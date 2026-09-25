@@ -106,6 +106,7 @@ fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             completed_at TEXT,
             due_at TEXT,
+            due_phrase TEXT,
             source TEXT NOT NULL DEFAULT 'claude',
             fingerprint TEXT,
             source_client TEXT,
@@ -189,11 +190,11 @@ fn migrate_add_fingerprint(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// Idempotent migration: the provenance columns task_from_row reads. The
-/// Node side adds them too, so whichever program opens an older DB first
-/// brings it up to date.
+/// Idempotent migration: nullable columns the Node side also adds, so
+/// whichever program opens an older DB first brings it up to date: the
+/// provenance task_from_row reads, and due_phrase, which snooze clears.
 fn migrate_add_provenance(conn: &Connection) -> rusqlite::Result<()> {
-    for col in ["source_client", "source_ref", "source_excerpt"] {
+    for col in ["source_client", "source_ref", "source_excerpt", "due_phrase"] {
         let has_col = conn
             .prepare("SELECT 1 FROM pragma_table_info('tasks') WHERE name = ?")?
             .exists([col])?;
@@ -500,6 +501,44 @@ fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Snooze from the pane: move an open task's due time to `until` (RFC 3339).
+/// due_phrase no longer says when it's due, so it's cleared; the edit event
+/// keeps the old and new times.
+#[tauri::command]
+fn snooze_task(id: i64, until: String, db: tauri::State<'_, Mutex<DbPath>>) -> Result<(), String> {
+    let path = db.lock().unwrap().0.clone();
+    let mut conn = open_db(&path).map_err(|e| e.to_string())?;
+    snooze(&mut conn, id, &until)
+}
+
+fn snooze(conn: &mut Connection, id: i64, until: &str) -> Result<(), String> {
+    let until = chrono::DateTime::parse_from_rfc3339(until)
+        .map_err(|e| format!("snooze time {until:?}: {e}"))?
+        .with_timezone(&chrono::Utc)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
+    let (task_uuid, was): (String, Option<String>) = tx
+        .query_row(
+            "SELECT uuid, due_at FROM tasks WHERE id = ? AND completed_at IS NULL",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("no open task #{id}"))?;
+    tx.execute(
+        "UPDATE tasks SET due_at = ?, due_phrase = NULL WHERE id = ?",
+        rusqlite::params![until, id],
+    )
+    .map_err(|e| e.to_string())?;
+    let payload = serde_json::json!({ "due_at": until, "snoozed_from": was });
+    record_event(&tx, "edit", &task_uuid, Some(&payload)).map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn complete_task(id: i64, db: tauri::State<'_, Mutex<DbPath>>) -> Result<Option<Task>, String> {
     let path = db.lock().unwrap().0.clone();
@@ -572,6 +611,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -600,6 +640,7 @@ pub fn run() {
             close_quickadd,
             write_calendar,
             calendar_file_path,
+            snooze_task,
             get_setup_complete,
             open_wizard,
             wizard_close,
@@ -782,6 +823,33 @@ mod tests {
         let path = std::env::temp_dir().join(format!("stickyinc-test-{}.db", uuid::Uuid::new_v4()));
         let conn = open_db(&path).unwrap();
         assert_eq!(next_lamport(&conn, "fresh-device").unwrap(), 1);
+        drop(conn);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn snooze_moves_the_due_time_and_logs_it() {
+        let path = std::env::temp_dir().join(format!("stickyinc-test-{}.db", uuid::Uuid::new_v4()));
+        let mut conn = open_db(&path).unwrap();
+        conn.execute_batch(
+            "INSERT INTO tasks (uuid, text, due_at, due_phrase) VALUES ('s1', 'Call the dentist', '2026-10-02T19:00:00Z', 'Friday 3pm');
+             INSERT INTO tasks (uuid, text, due_at, completed_at) VALUES ('s2', 'Done already', '2026-10-02T19:00:00Z', datetime('now'));",
+        )
+        .unwrap();
+        let id: i64 = conn.query_row("SELECT id FROM tasks WHERE uuid = 's1'", [], |r| r.get(0)).unwrap();
+        snooze(&mut conn, id, "2026-10-02T16:00:00-04:00").unwrap();
+        let (due, phrase): (String, Option<String>) = conn
+            .query_row("SELECT due_at, due_phrase FROM tasks WHERE id = ?", [id], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap();
+        assert_eq!((due.as_str(), phrase), ("2026-10-02T20:00:00Z", None));
+        let payload: String = conn
+            .query_row("SELECT payload FROM task_events WHERE task_uuid = 's1' AND op = 'edit'", [], |r| r.get(0))
+            .unwrap();
+        assert!(payload.contains(r#""snoozed_from":"2026-10-02T19:00:00Z""#), "{payload}");
+
+        let done: i64 = conn.query_row("SELECT id FROM tasks WHERE uuid = 's2'", [], |r| r.get(0)).unwrap();
+        assert!(snooze(&mut conn, done, "2026-10-03T13:00:00Z").is_err(), "finished tasks aren't snoozed");
+        assert!(snooze(&mut conn, id, "tomorrow").is_err(), "not RFC 3339");
         drop(conn);
         let _ = std::fs::remove_file(&path);
     }

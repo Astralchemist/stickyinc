@@ -151,6 +151,10 @@ The task appears in your pane before Claude finishes its reply.
 
 While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A centered input appears — type, hit Enter, done. Inline dates work, in your local time: `buy bread due:2026-04-25` (9 am) or `call mum due:2026-04-25T15:30`.
 
+### Reminders
+
+While the pane runs, you get a notification a day before a task is due and again when it's due (StickyInc asks for permission the first time). They follow your system's Do Not Disturb and Focus settings. A task due within a day, or overdue, offers **Snooze 1h** or **tomorrow** (9 am) when you hover it, and the "Due now" pop-out at the screen edge opens the pane when clicked.
+
 ---
 
 ## MCP tools
