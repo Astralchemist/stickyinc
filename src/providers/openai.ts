@@ -1,4 +1,4 @@
-import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
+import { CHAT_TIMEOUT_MS, type ChatOptions, type ChatResult, type LLMProvider } from "./types.js";
 
 interface OpenAICompatConfig {
   api_key: string;
@@ -50,6 +50,7 @@ export class OpenAICompatProvider implements LLMProvider {
         ...this.extraHeaders,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`${this.name} API error: ${res.status} ${await res.text()}`);

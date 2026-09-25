@@ -446,7 +446,7 @@ pub async fn wizard_validate_llm_key(cfg: LLMConfig) -> Result<ValidateResult, S
 
     match cfg.provider.as_str() {
         "anthropic" => validate_anthropic(&client, &cfg).await,
-        "openrouter" => validate_openai_compat(&client, &cfg, "https://openrouter.ai/api/v1", "anthropic/claude-3.5-haiku").await,
+        "openrouter" => validate_openai_compat(&client, &cfg, "https://openrouter.ai/api/v1", "anthropic/claude-haiku-4.5").await,
         "openai" => validate_openai_compat(&client, &cfg, "https://api.openai.com/v1", "gpt-4o-mini").await,
         "compat" => {
             let base = cfg.base_url.clone().ok_or("Base URL required for compat provider")?;

@@ -150,7 +150,7 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 | **Codex (ChatGPT)** — your ChatGPT Plus / Pro / Team subscription, *no API key* | local `codex` CLI OAuth | `codex` on `$PATH` | whatever `codex` defaults to |
 | **Gemini** — your Google account (Gemini Advanced quota or free tier), *no API key* | local `gemini` CLI OAuth | `gemini` on `$PATH` | whatever `gemini` defaults to |
 | **Local (Ollama / LM Studio)** — fully offline, free, no cloud call at all | — | `:11434` or `:1234` responding | first installed model |
-| **OpenRouter** — one key, ~200 models, cheapest per token | API key | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-haiku` |
+| **OpenRouter** — one key, ~200 models, cheapest per token | API key | `OPENROUTER_API_KEY` | `anthropic/claude-haiku-4.5` |
 | **Anthropic** (direct) | API key ([console.anthropic.com](https://console.anthropic.com/)) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
 | **OpenAI** (direct) | API key ([platform.openai.com](https://platform.openai.com/api-keys)) | `OPENAI_API_KEY` | `gpt-4o-mini` |
 | **OpenAI-compatible** (Groq, Together, Fireworks, vLLM…) | API key | config file | — |
@@ -206,7 +206,7 @@ Each subscription CLI call shells out to the tool's print mode (`claude -p` / `c
 { "provider": "compat", "base_url": "http://localhost:11434/v1", "model": "llama3.2", "api_key": "ollama" }
 ```
 
-Override the model on any env-var or auto-detect path with `STICKYINC_MODEL=…`.
+Override the model on any env-var or auto-detect path with `STICKYINC_MODEL=…`. Each LLM call gives up after 90 seconds; raise that with `STICKYINC_LLM_TIMEOUT_MS=…` if you run a slow local model.
 
 ### A note on subscription-mode tradeoffs
 

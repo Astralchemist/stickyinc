@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
+import { CHAT_TIMEOUT_MS, type ChatOptions, type ChatResult, type LLMProvider } from "./types.js";
 import { whichBinary } from "./which.js";
 
 /**
@@ -58,14 +58,25 @@ export class ClaudeCodeProvider implements LLMProvider {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
+      // Fail the call on time even if a grandchild keeps the pipes open
+      // (then "close" would wait for it).
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error(`claude -p gave no answer within ${CHAT_TIMEOUT_MS / 1000}s`));
+      }, CHAT_TIMEOUT_MS);
+
       let out = "";
       let err = "";
       child.stdout.setEncoding("utf8");
       child.stderr.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => (out += chunk));
       child.stderr.on("data", (chunk: string) => (err += chunk));
-      child.on("error", reject);
+      child.on("error", (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
       child.on("close", (code) => {
+        clearTimeout(timer);
         if (code !== 0) {
           const stderrSnip = err.trim().slice(0, 400);
           const stdoutSnip = out.trim().slice(0, 400);

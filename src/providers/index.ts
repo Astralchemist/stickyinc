@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { AnthropicProvider } from "./anthropic.js";
@@ -38,7 +38,15 @@ function readConfigFile(): LLMConfig | null {
   }
 }
 
-let cached: LLMProvider | null | undefined;
+let cached: { provider: LLMProvider; configMtime: number } | undefined;
+
+function configMtime(): number {
+  try {
+    return statSync(CONFIG_PATH).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
 
 /**
  * Resolve an LLM provider from (in priority order):
@@ -51,13 +59,18 @@ let cached: LLMProvider | null | undefined;
  *   7. `gemini`  CLI on PATH           — Google account (Gemini Advanced/free)
  *   8. localhost :11434 or :1234       — Ollama / LM Studio (local, free)
  *
- * Cached for the lifetime of the process so repeated callers don't re-probe
- * localhost each time. Returns null if nothing above is available.
+ * Cached so repeated callers don't re-probe localhost each time — but only a
+ * found provider, and only until llm.json changes. The MCP server outlives
+ * the setup wizard, so caching "nothing configured" (or a stale choice)
+ * would force a restart of Claude after finishing setup. Returns null if
+ * nothing above is available.
  */
 export async function resolveLLMProvider(): Promise<LLMProvider | null> {
-  if (cached !== undefined) return cached;
-  cached = await resolveInternal();
-  return cached;
+  const mtime = configMtime();
+  if (cached && cached.configMtime === mtime) return cached.provider;
+  const provider = await resolveInternal();
+  cached = provider ? { provider, configMtime: mtime } : undefined;
+  return provider;
 }
 
 async function resolveInternal(): Promise<LLMProvider | null> {
@@ -75,7 +88,7 @@ async function resolveInternal(): Promise<LLMProvider | null> {
         if (!key) return null;
         return new OpenAICompatProvider({
           api_key: key,
-          model: cfg.model ?? "anthropic/claude-3.5-haiku",
+          model: cfg.model ?? "anthropic/claude-haiku-4.5",
           base_url: cfg.base_url ?? "https://openrouter.ai/api/v1",
           provider_label: "openrouter",
           extra_headers: {
@@ -129,7 +142,7 @@ async function resolveInternal(): Promise<LLMProvider | null> {
   if (process.env.OPENROUTER_API_KEY) {
     return new OpenAICompatProvider({
       api_key: process.env.OPENROUTER_API_KEY,
-      model: process.env.STICKYINC_MODEL ?? "anthropic/claude-3.5-haiku",
+      model: process.env.STICKYINC_MODEL ?? "anthropic/claude-haiku-4.5",
       base_url: "https://openrouter.ai/api/v1",
       provider_label: "openrouter",
       extra_headers: {
