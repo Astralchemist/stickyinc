@@ -9,6 +9,8 @@ import { scheduleEventSchema, handleScheduleEvent } from "./tools/schedule_event
 import { listDoneSchema, handleListDone } from "./tools/list_done.js";
 import { stickySearchSchema, handleStickySearch } from "./tools/sticky_search.js";
 import { clientLabel } from "./provenance.js";
+import { searchTasks } from "./db.js";
+import { morningReview, overdueReview, weeklyCloseout } from "./prompts.js";
 
 const server = new McpServer({
   name: "stickyinc",
@@ -95,6 +97,44 @@ server.registerTool(
     inputSchema: stickySearchSchema,
   },
   handleStickySearch
+);
+
+// Canned prompts (src/prompts.ts): the user's tasks, fetched the way
+// sticky_search fetches them, with a request that ends in an action list.
+const openTasks = () => searchTasks({ status: "open", limit: 500 });
+const asPrompt = (text: string) => ({
+  messages: [{ role: "user" as const, content: { type: "text" as const, text } }],
+});
+
+server.registerPrompt(
+  "morning_review",
+  {
+    title: "Morning review",
+    description: "Go through today's StickyInc list (overdue, due today, this week) and end with an action list for today.",
+  },
+  () => asPrompt(morningReview(openTasks()))
+);
+
+server.registerPrompt(
+  "overdue",
+  {
+    title: "Overdue",
+    description: "Decide what to do about each overdue StickyInc task (do now, reschedule, or drop), ending with an action list.",
+  },
+  () => asPrompt(overdueReview(openTasks()))
+);
+
+server.registerPrompt(
+  "weekly_closeout",
+  {
+    title: "Weekly close-out",
+    description: "Review the week in StickyInc (done, slipped, due next) and end with an action list for next week.",
+  },
+  () => {
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const done = searchTasks({ status: "done", completedSince: weekAgo, limit: 200 });
+    return asPrompt(weeklyCloseout(openTasks(), done));
+  }
 );
 
 const transport = new StdioServerTransport();

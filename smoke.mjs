@@ -129,6 +129,22 @@ try {
     { since: "tomorrow" }, { includes: ["No tasks added since tomorrow"] });
   await tool("sticky_search rejects a since that isn't a date", "sticky_search",
     { since: "whenever" }, { error: true });
+
+  const listed = (await send("prompts/list", {})).result?.prompts?.map((p) => p.name).sort() ?? [];
+  check("prompts/list offers the canned prompts",
+    listed.join(",") === "morning_review,overdue,weekly_closeout", listed.join(", "));
+  /** Get a prompt and check its message has the right tasks and ends asking for an action list. */
+  async function prompt(label, name, includes) {
+    const resp = await send("prompts/get", { name });
+    const text = resp.result?.messages?.[0]?.content?.text ?? JSON.stringify(resp.error);
+    const missing = [...includes, "**Action list**"].filter((s) => !text.includes(s));
+    check(label, missing.length === 0, missing.length ? `missing ${missing.join(" | ")}\n${text}` : text.split("\n")[0]);
+  }
+  await prompt("morning_review sorts the list", "morning_review",
+    ["## Overdue (1)", "#3 Design review", "#4 Buy bread", "## No due date (oldest first) (1)", "#2 Call the dentist"]);
+  await prompt("overdue lists what's past due", "overdue", ["## Overdue (1)", "#3 Design review"]);
+  await prompt("weekly_closeout includes the week's done tasks", "weekly_closeout",
+    ["## Done in the last 7 days (1)", "[x] #1 Try the smoke test", "## Added this week and still open (3)"]);
 } finally {
   child.kill();
   rmSync(home, { recursive: true, force: true });

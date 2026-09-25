@@ -169,6 +169,16 @@ While the pane runs, you get a notification a day before a task is due and again
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
 
+### Prompts
+
+Three ready-made prompts, for day-one value without writing any: they appear wherever your client lists MCP prompts (in Claude Code, as `/mcp__stickyinc__morning_review` and so on). Each fills itself in with your tasks and ends with a numbered action list.
+
+| Prompt | What it does |
+|---|---|
+| `morning_review` | Overdue, due today, due this week, and your oldest undated tasks: what matters today, and an action list for it. |
+| `overdue` | Each overdue task with when you added it and what you said: do it now, reschedule it, or drop it. |
+| `weekly_closeout` | The week's done, added, slipped and due-next tasks, and an action list for next week. |
+
 ### Where a task came from
 
 Rest the pointer on a task in the pane to see where it came from: the words it came from, the app, and when, e.g. *"Remind me to call the dentist Friday afternoon…"* — Added from Claude Code · 2h ago. The tools that add tasks take an optional `context` with an `excerpt` (the user's words, kept to 200 characters) and a `ref` (a file, URL, or ticket), and the server records the app from the MCP handshake. Passive extraction stores the sentence it heard and a pointer to the transcript message. They're kept in `source_client`, `source_ref` and `source_excerpt`.

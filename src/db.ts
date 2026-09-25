@@ -349,6 +349,8 @@ export interface SearchOptions {
   status?: "open" | "done" | "all";
   /** Only tasks added at or after this UTC ISO 8601 instant. */
   since?: string;
+  /** Only tasks finished at or after this UTC ISO 8601 instant. */
+  completedSince?: string;
   limit?: number;
 }
 
@@ -358,7 +360,13 @@ export interface SearchOptions {
  * rebuilt from tasks on each search (a few ms for thousands of tasks); with
  * no FTS5, every word just has to appear somewhere, newest first.
  */
-export function searchTasks({ query = "", status = "all", since, limit = 20 }: SearchOptions): Task[] {
+export function searchTasks({
+  query = "",
+  status = "all",
+  since,
+  completedSince,
+  limit = 20,
+}: SearchOptions): Task[] {
   const words = searchWords(query);
   const where: string[] = [];
   const params: (string | number)[] = [];
@@ -367,6 +375,10 @@ export function searchTasks({ query = "", status = "all", since, limit = 20 }: S
   if (since) {
     where.push("t.created_at >= ?");
     params.push(toSqliteUtc(since));
+  }
+  if (completedSince) {
+    where.push("t.completed_at >= ?");
+    params.push(toSqliteUtc(completedSince));
   }
 
   if (words.length > 0 && HAS_FTS5) {
