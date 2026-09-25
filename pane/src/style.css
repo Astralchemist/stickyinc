@@ -170,6 +170,53 @@ header #count {
   font-variant-numeric: tabular-nums;
 }
 
+/* First-run tour card, between the header and the tasks */
+.tour {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.tour-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.tour-title {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tour-count {
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tour-text {
+  margin: 0;
+  line-height: 1.45;
+}
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tour-next {
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  cursor: pointer;
+}
+
 ul#tasks {
   list-style: none;
   padding: 0;

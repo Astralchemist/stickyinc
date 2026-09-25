@@ -29,6 +29,16 @@ const PANE_H_FRAC = 1.0;
 const BULGE_HOLD_MS = 3500;
 const BULGE_COOLDOWN_MS = 30_000;
 const DUE_POLL_MS = 30_000;
+const IS_MAC = navigator.userAgent.includes("Mac");
+const TOUR_SEEN_KEY = "stickyinc.tourSeen";
+/** The first-run tour: what the pane is and the four things to know. */
+const TOUR = [
+  "Claude writes here. Mention something you need to do in a Claude chat, like “I need to call the dentist Friday”, and it lands on this list.",
+  "Tick a task to finish it. It stays under Recently done for a day.",
+  "Rest the pointer on a task to see where it came from: the words it came from, and which app.",
+  `Press ${IS_MAC ? "⌘⇧N" : "Ctrl+Shift+N"} to add one yourself. To open this pane, rest the pointer on the right edge of your screen.`,
+];
+
 /** Rest on a task this long to see where it came from; passing over doesn't. */
 const PROVENANCE_DELAY_MS = 400;
 
@@ -56,6 +66,8 @@ let knownTaskIds: Set<number> | null = null;
 let lastDueCheck = Date.now();
 let seededSetupBulge = false;
 let provenanceTimer: number | null = null;
+/** Index into TOUR while the tour is showing. */
+let tourStep: number | null = null;
 /** The task whose card is showing or about to show; refresh() carries it over. */
 let provenanceTaskId: number | null = null;
 
@@ -390,6 +402,38 @@ function collapse(): void {
   }, 400);
 }
 
+function tourSeen(): boolean {
+  try {
+    return localStorage.getItem(TOUR_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function renderTour(): void {
+  const el = document.getElementById("tour") as HTMLElement;
+  el.hidden = tourStep === null;
+  if (tourStep === null) return;
+  document.getElementById("tour-text")!.textContent = TOUR[tourStep];
+  document.getElementById("tour-count")!.textContent = `${tourStep + 1} of ${TOUR.length}`;
+  document.getElementById("tour-next")!.textContent = tourStep === TOUR.length - 1 ? "Got it" : "Next";
+}
+
+function startTour(): void {
+  tourStep = 0;
+  renderTour();
+}
+
+function endTour(): void {
+  tourStep = null;
+  try {
+    localStorage.setItem(TOUR_SEEN_KEY, "1");
+  } catch {
+    /* shows again next launch; harmless */
+  }
+  renderTour();
+}
+
 function showSetupOrSettings(): void {
   (document.getElementById("setup-link") as HTMLElement).hidden = setupComplete;
   (document.getElementById("settings-link") as HTMLElement).hidden = !setupComplete;
@@ -422,6 +466,17 @@ async function bootstrap(): Promise<void> {
 
   // "setup" until the wizard is finished, then a gear that opens settings.
   showSetupOrSettings();
+
+  document.getElementById("tour-next")?.addEventListener("click", () => {
+    if (tourStep === null) return;
+    if (tourStep === TOUR.length - 1) endTour();
+    else {
+      tourStep += 1;
+      renderTour();
+    }
+  });
+  document.getElementById("tour-skip")?.addEventListener("click", endTour);
+  if (setupComplete && !tourSeen()) startTour();
   for (const id of ["setup-link", "settings-link"]) {
     document.getElementById(id)?.addEventListener("click", () => {
       void invoke("open_wizard");
@@ -431,9 +486,11 @@ async function bootstrap(): Promise<void> {
   await refresh();
 
   await listen("tasks-changed", () => refresh());
+  await listen("show-tour", startTour); // from Settings
   await listen("setup-complete", async () => {
     setupComplete = true;
     showSetupOrSettings();
+    if (!tourSeen()) startTour();
     // User just finished the wizard — flip into strip mode and stop hiding.
     if (currentMode === "hidden") {
       await setMode("strip");

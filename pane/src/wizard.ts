@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 type StepName = "welcome" | "provider" | "claude" | "watcher" | "done" | "settings";
@@ -453,6 +454,10 @@ function bind(): void {
     el.addEventListener("click", () => goto(el.dataset.settingsGo as StepName));
   });
   $("#settings-done").addEventListener("click", () => void invoke("wizard_close"));
+  $("#settings-show-tour").addEventListener("click", () => {
+    void emit("show-tour");
+    $("#settings-tour").textContent = "Showing in the pane now: open it from the right edge.";
+  });
 
   $("#claude-confirm").addEventListener("click", () => {
     const diff = state.claudeDiff;

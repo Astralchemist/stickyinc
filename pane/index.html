@@ -20,6 +20,20 @@
         <h1>Sticky<span>Inc</span></h1>
         <span id="count"></span>
       </header>
+      <!-- First-run tour: a few tips, shown each time the pane opens until
+           finished or skipped; Settings can replay it. -->
+      <section id="tour" class="tour" aria-live="polite" hidden>
+        <div class="tour-head">
+          <span class="tour-title">Quick tour</span>
+          <span id="tour-count" class="tour-count"></span>
+        </div>
+        <p id="tour-text" class="tour-text"></p>
+        <div class="tour-actions">
+          <button id="tour-skip" class="footer-link">Skip</button>
+          <button id="tour-next" class="tour-next">Next</button>
+        </div>
+      </section>
+
       <ul id="tasks" aria-live="polite"></ul>
 
       <section id="recent-section" hidden>
