@@ -21,6 +21,11 @@ interface LLMConfig {
   model?: string;
 }
 
+interface ModelInfo {
+  id: string;
+  name: string;
+}
+
 interface ClaudeDiff {
   state: "new" | "same" | "conflict";
   existing?: string;
@@ -47,6 +52,14 @@ const state = {
   claudeDiff: null as ClaudeDiff | null,
   claudeResolution: "replace" as "replace" | "skip",
   detected: null as SubscriptionDetection | null,
+  openrouterModels: null as ModelInfo[] | null,
+};
+
+/** What the model box starts with, and suggests, per provider. */
+const DEFAULT_MODELS: Partial<Record<Provider, string>> = {
+  openrouter: "anthropic/claude-haiku-4.5",
+  openai: "gpt-4o-mini",
+  compat: "llama3.1",
 };
 
 function $(sel: string): HTMLElement {
@@ -192,8 +205,16 @@ function refreshProviderFields(): void {
   const p = provider();
   const baseUrl = document.querySelector<HTMLElement>('[data-field="baseUrl"]');
   const model = document.querySelector<HTMLElement>('[data-field="model"]');
+  const modelList = document.querySelector<HTMLElement>('[data-field="modelList"]');
   if (baseUrl) baseUrl.hidden = p !== "compat";
   if (model) model.hidden = p === "anthropic";
+  if (modelList) modelList.hidden = p !== "openrouter";
+
+  // Model ids don't carry across providers, so start from this one's default.
+  const modelInput = $("#llm-model") as HTMLInputElement;
+  modelInput.value = p === "openrouter" ? (DEFAULT_MODELS.openrouter ?? "") : "";
+  modelInput.placeholder = p === "openrouter" ? "Search, or type a model id" : (DEFAULT_MODELS[p] ?? "");
+  if (p === "openrouter") void loadOpenRouterModels();
 
   const note = $("#provider-note");
   const messages: Partial<Record<Provider, string>> = {
@@ -203,6 +224,45 @@ function refreshProviderFields(): void {
     compat: 'Any OpenAI-compatible endpoint works — Ollama, vLLM, Groq, Together, Fireworks.',
   };
   note.innerHTML = messages[p] ?? "";
+}
+
+async function loadOpenRouterModels(): Promise<void> {
+  const status = $("#llm-model-status");
+  if (!state.openrouterModels) {
+    status.textContent = "Loading OpenRouter's models…";
+    try {
+      state.openrouterModels = await invoke<ModelInfo[]>("wizard_list_openrouter_models");
+    } catch {
+      status.textContent = "Couldn't load OpenRouter's models. Type a model id above instead.";
+      return;
+    }
+  }
+  renderModelList();
+}
+
+/** The OpenRouter models matching `filter` (by name or id); the chosen one selected. */
+function renderModelList(filter = ""): void {
+  const models = state.openrouterModels;
+  if (!models) return;
+  const q = filter.trim().toLowerCase();
+  const shown = q
+    ? models.filter((m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
+    : models;
+  const chosen = ($("#llm-model") as HTMLInputElement).value.trim();
+  const list = $("#llm-model-list") as HTMLSelectElement;
+  list.replaceChildren(
+    ...shown.map((m) => {
+      const option = new Option(m.name, m.id, false, m.id === chosen);
+      option.title = m.id;
+      return option;
+    }),
+  );
+  // Scroll the list, not the page (scrollIntoView would move both), to the chosen model.
+  const checked = list.querySelector<HTMLOptionElement>("option:checked");
+  if (checked) list.scrollTop = checked.offsetTop - list.clientHeight / 2;
+  $("#llm-model-status").textContent = q
+    ? `${shown.length} of ${models.length} models match`
+    : `${models.length} models. Scroll, or type above to narrow.`;
 }
 
 async function validateAndContinue(): Promise<void> {
@@ -324,6 +384,13 @@ function bind(): void {
   });
 
   $("#validate-next").addEventListener("click", () => void validateAndContinue());
+
+  $("#llm-model").addEventListener("input", (e) => {
+    if (provider() === "openrouter") renderModelList((e.target as HTMLInputElement).value);
+  });
+  $("#llm-model-list").addEventListener("change", (e) => {
+    ($("#llm-model") as HTMLInputElement).value = (e.target as HTMLSelectElement).value;
+  });
 
   $("#toggle-byok").addEventListener("click", (e) => {
     e.preventDefault();

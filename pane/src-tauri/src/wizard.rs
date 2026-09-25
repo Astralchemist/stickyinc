@@ -526,6 +526,51 @@ async fn validate_anthropic(client: &reqwest::Client, cfg: &LLMConfig) -> Result
     }
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+}
+
+/// OpenRouter's /models response as (id, name) pairs, sorted by name so each
+/// maker's models sit together ("Anthropic: …", "OpenAI: …").
+fn parse_openrouter_models(data: &serde_json::Value) -> Vec<ModelInfo> {
+    let mut models: Vec<ModelInfo> = data["data"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(|m| {
+                    let id = m["id"].as_str()?.to_string();
+                    let name = m["name"].as_str().unwrap_or(&id).to_string();
+                    Some(ModelInfo { id, name })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    models.sort_by_key(|m| m.name.to_lowercase());
+    models
+}
+
+/// The models the wizard's OpenRouter picker scrolls through. The list is
+/// public, so this works before the user has pasted a key.
+#[tauri::command]
+pub async fn wizard_list_openrouter_models() -> Result<Vec<ModelInfo>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let data: serde_json::Value = client
+        .get("https://openrouter.ai/api/v1/models")
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(parse_openrouter_models(&data))
+}
+
 async fn validate_openai_compat(
     client: &reqwest::Client,
     cfg: &LLMConfig,
@@ -641,4 +686,22 @@ pub fn wizard_close(window: tauri::Window) -> Result<(), String> {
         window.close().map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openrouter_models_are_sorted_by_name_and_skip_entries_without_an_id() {
+        let data = serde_json::json!({ "data": [
+            { "id": "openai/gpt-5", "name": "OpenAI: GPT-5" },
+            { "name": "No id, skipped" },
+            { "id": "anthropic/claude-haiku-4.5", "name": "Anthropic: Claude Haiku 4.5" },
+            { "id": "x/unnamed" },
+        ]});
+        let ids: Vec<_> = parse_openrouter_models(&data).into_iter().map(|m| m.id).collect();
+        assert_eq!(ids, ["anthropic/claude-haiku-4.5", "openai/gpt-5", "x/unnamed"]);
+        assert!(parse_openrouter_models(&serde_json::json!({})).is_empty());
+    }
 }

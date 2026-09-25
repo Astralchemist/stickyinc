@@ -58,8 +58,15 @@
 
           <label class="field" data-field="model" hidden>
             <span class="field-label">Model</span>
-            <input id="llm-model" type="text" placeholder="claude-haiku-4-5-20251001" />
+            <input id="llm-model" type="text" autocomplete="off" spellcheck="false" />
           </label>
+
+          <!-- OpenRouter only: its models, to scroll through; typing in the
+               model box above narrows the list. -->
+          <div class="field" data-field="modelList" hidden>
+            <select id="llm-model-list" size="5" aria-label="OpenRouter models"></select>
+            <span class="field-hint" id="llm-model-status"></span>
+          </div>
 
           <p class="provider-note" id="provider-note">
             No key? <a href="#" data-link="https://openrouter.ai/keys">Get one free from OpenRouter →</a>
