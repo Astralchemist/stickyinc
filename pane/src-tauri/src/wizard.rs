@@ -134,10 +134,9 @@ pub struct SubscriptionDetection {
 /// Apps launched from Finder/Dock/Spotlight on macOS inherit a stripped PATH
 /// (`/usr/bin:/bin:/usr/sbin:/sbin`) that doesn't include the user's npm /
 /// Homebrew / asdf / volta dirs — so a plain PATH walk can't see `claude`,
-/// `codex`, `gemini`, or even `node` for users who installed them via tools
-/// other than the system package manager. The fallback shells out to
-/// `/bin/sh -lc 'command -v <name>'` so a real login shell sources the user's
-/// rc files and tells us where the binary actually lives.
+/// `codex`, `gemini`, or even `node`. After the PATH walk we check the usual
+/// install dirs, then (macOS) ask the user's own shell. Mirrors
+/// `whichBinary` in src/providers/which.ts.
 fn resolve_binary(name: &str) -> Option<String> {
     if let Some(path) = std::env::var_os("PATH") {
         let exts: &[&str] = if cfg!(windows) {
@@ -158,17 +157,38 @@ fn resolve_binary(name: &str) -> Option<String> {
         }
     }
 
+    #[cfg(unix)]
+    if let Some(home) = dirs::home_dir() {
+        let known = [
+            home.join(".local/bin"), // Claude Code's native installer, codex, pipx, uv
+            PathBuf::from("/opt/homebrew/bin"),
+            PathBuf::from("/usr/local/bin"),
+            home.join(".npm-global/bin"),
+            home.join(".volta/bin"),
+            home.join(".bun/bin"),
+        ];
+        for dir in known {
+            let candidate = dir.join(name);
+            if candidate.exists() {
+                return Some(candidate.to_string_lossy().to_string());
+            }
+        }
+    }
+
     #[cfg(target_os = "macos")]
     {
         return shell_resolve(name);
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = name;
         None
     }
 }
 
+/// Ask the user's own shell, as a login + interactive shell: that is what
+/// reads ~/.zprofile and ~/.zshrc, where Homebrew, nvm, asdf and installers
+/// add to PATH. (`/bin/sh -l` reads neither.) Killed after 3s so a slow or
+/// odd rc file can't hang setup.
 #[cfg(target_os = "macos")]
 fn shell_resolve(name: &str) -> Option<String> {
     if !name
@@ -177,33 +197,40 @@ fn shell_resolve(name: &str) -> Option<String> {
     {
         return None;
     }
+    use std::io::Read;
     use std::process::{Command, Stdio};
-    use std::sync::mpsc;
-    use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
-    let (tx, rx) = mpsc::channel();
-    let cmd_str = format!("command -v {}", name);
-    thread::spawn(move || {
-        let result = Command::new("/bin/sh")
-            .arg("-lc")
-            .arg(cmd_str)
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .output();
-        let _ = tx.send(result);
-    });
-    match rx.recv_timeout(Duration::from_secs(1)) {
-        Ok(Ok(out)) if out.status.success() => {
-            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if s.is_empty() {
-                None
-            } else {
-                Some(s)
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let mut child = Command::new(shell)
+        .arg("-ilc")
+        .arg(format!("command -v {}", name))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
             }
         }
-        _ => None,
     }
+    let mut out = String::new();
+    child.stdout.take()?.read_to_string(&mut out).ok()?;
+    // Interactive rc files can print banners; the answer is the last line
+    // that is an existing absolute path (aliases and functions don't count).
+    out.lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| l.starts_with('/') && std::path::Path::new(l).exists())
+        .map(str::to_string)
 }
 
 async fn probe_local_endpoint(
