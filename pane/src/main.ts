@@ -13,6 +13,9 @@ interface Task {
   completed_at: string | null;
   due_at: string | null;
   source: string;
+  source_client: string | null;
+  source_ref: string | null;
+  source_excerpt: string | null;
 }
 
 type Mode = "hidden" | "strip" | "bulge" | "expanded";
@@ -26,8 +29,12 @@ const PANE_H_FRAC = 1.0;
 const BULGE_HOLD_MS = 3500;
 const BULGE_COOLDOWN_MS = 30_000;
 const DUE_POLL_MS = 30_000;
+/** Rest on a task this long to see where it came from; passing over doesn't. */
+const PROVENANCE_DELAY_MS = 400;
 
 const body = document.body;
+const paneEl = document.getElementById("pane") as HTMLDivElement;
+const provenanceEl = document.getElementById("provenance") as HTMLDivElement;
 const tasksEl = document.getElementById("tasks") as HTMLUListElement;
 const countEl = document.getElementById("count") as HTMLSpanElement;
 const recentSection = document.getElementById("recent-section") as HTMLElement;
@@ -46,6 +53,9 @@ let bulgeTimer: number | null = null;
 let knownTaskIds: Set<number> | null = null;
 let lastDueCheck = Date.now();
 let seededSetupBulge = false;
+let provenanceTimer: number | null = null;
+/** The task whose card is showing or about to show; refresh() carries it over. */
+let provenanceTaskId: number | null = null;
 
 async function positionWindow(width: number): Promise<void> {
   const w = getCurrentWindow();
@@ -105,6 +115,76 @@ function formatDue(dueAt: string): string {
   return d.toLocaleString(undefined, opts);
 }
 
+/** SQLite's datetime('now') (UTC, no zone) as "2h ago", "yesterday", "Sep 20". */
+function formatAgo(sqliteUtc: string): string {
+  const then = new Date(sqliteUtc.replace(" ", "T") + "Z").getTime();
+  const mins = Math.round((Date.now() - then) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return days === 1 ? "yesterday" : `${days} days ago`;
+  return new Date(then).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** How a task got here, in words: "Overheard in Claude Code · 2h ago". */
+function provenanceLine(task: Task): string {
+  const app = task.source_client;
+  const how =
+    task.source === "passive-extract" ? `Overheard in ${app ?? "Claude Code"}`
+    : task.source === "calendar" ? (app ? `Scheduled from ${app}` : "Scheduled by Claude")
+    : app ? `Added from ${app}` : "Added by Claude";
+  return `${how} · ${formatAgo(task.created_at)}`;
+}
+
+function showProvenance(li: HTMLElement, task: Task): void {
+  provenanceTaskId = task.id;
+  provenanceEl.replaceChildren();
+  if (task.source_excerpt) {
+    const quote = document.createElement("p");
+    quote.className = "excerpt";
+    quote.textContent = `“${task.source_excerpt}”`;
+    provenanceEl.appendChild(quote);
+  }
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = provenanceLine(task);
+  provenanceEl.appendChild(meta);
+  provenanceEl.hidden = false;
+
+  // Below the task if it fits, else above; #pane is the positioning box.
+  const pane = paneEl.getBoundingClientRect();
+  const row = li.getBoundingClientRect();
+  const h = provenanceEl.offsetHeight;
+  const below = row.bottom - pane.top + 4;
+  const top = below + h <= pane.height - 8 ? below : row.top - pane.top - h - 4;
+  provenanceEl.style.top = `${Math.max(8, top)}px`;
+}
+
+function hideProvenance(): void {
+  if (provenanceTimer) clearTimeout(provenanceTimer);
+  provenanceTimer = null;
+  provenanceTaskId = null;
+  provenanceEl.hidden = true;
+}
+
+function scheduleProvenance(li: HTMLElement, task: Task): void {
+  // Already showing it (a re-rendered row under a resting pointer): follow
+  // the new row rather than blinking out for another delay.
+  if (provenanceTaskId === task.id && !provenanceEl.hidden) return showProvenance(li, task);
+  hideProvenance();
+  provenanceTaskId = task.id;
+  provenanceTimer = window.setTimeout(() => showProvenance(li, task), PROVENANCE_DELAY_MS);
+}
+
+/** Rest on a task to see where it came from. Quick-adds are the user's own. */
+function attachProvenance(li: HTMLElement, task: Task): void {
+  if (task.source === "quickadd") return;
+  li.addEventListener("mouseenter", () => scheduleProvenance(li, task));
+  li.addEventListener("mouseleave", hideProvenance);
+}
+
 function renderOpen(tasks: Task[]): void {
   tasksEl.innerHTML = "";
   countEl.textContent = `${tasks.length} open`;
@@ -141,8 +221,10 @@ function renderOpen(tasks: Task[]): void {
 
     li.appendChild(check);
     li.appendChild(text);
+    attachProvenance(li, task);
 
     li.addEventListener("click", async () => {
+      hideProvenance();
       li.classList.add("done");
       try {
         await invoke("complete_task", { id: task.id });
@@ -173,6 +255,7 @@ function renderDoneList(target: HTMLUListElement, tasks: Task[]): void {
 
     li.appendChild(check);
     li.appendChild(text);
+    attachProvenance(li, task);
     target.appendChild(li);
   }
 }
@@ -256,6 +339,12 @@ async function refresh(): Promise<void> {
       invoke<Task[]>("list_archived_done", { hours: 24, limit: 100 }),
     ]);
 
+    // Rendering replaces the row under a resting pointer, and the new row
+    // never gets a mouseenter, so note the card and move it across after.
+    const carried = provenanceTaskId;
+    const wasShown = !provenanceEl.hidden;
+    hideProvenance();
+
     renderOpen(open);
     detectBulges(open);
 
@@ -265,6 +354,13 @@ async function refresh(): Promise<void> {
     drawerEl.hidden = archived.length === 0;
     archiveCountEl.textContent = String(archived.length);
     renderDoneList(archiveEl, archived);
+
+    const task = [...open, ...recent, ...archived].find((t) => t.id === carried);
+    const li = task && document.querySelector<HTMLElement>(`li.task[data-id="${task.id}"]`);
+    if (task && li) {
+      if (wasShown) showProvenance(li, task);
+      else scheduleProvenance(li, task);
+    }
   } catch (err) {
     console.error("refresh failed", err);
   }
@@ -311,6 +407,7 @@ async function bootstrap(): Promise<void> {
   document.getElementById("strip")?.addEventListener("mouseenter", expand);
   document.getElementById("pane")?.addEventListener("mouseenter", expand);
   document.getElementById("pane")?.addEventListener("mouseleave", collapse);
+  tasksEl.addEventListener("scroll", hideProvenance);
   document.getElementById("strip")?.addEventListener("mouseleave", (e) => {
     if (!(e.relatedTarget as Element)?.closest?.("#pane")) collapse();
   });

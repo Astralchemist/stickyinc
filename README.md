@@ -164,6 +164,10 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
 
+### Where a task came from
+
+Rest the pointer on a task in the pane to see where it came from: the words it came from, the app, and when, e.g. *"Remind me to call the dentist Friday afternoon…"* — Added from Claude Code · 2h ago. The tools that add tasks take an optional `context` with an `excerpt` (the user's words, kept to 200 characters) and a `ref` (a file, URL, or ticket), and the server records the app from the MCP handshake. Passive extraction stores the sentence it heard and a pointer to the transcript message. They're kept in `source_client`, `source_ref` and `source_excerpt`.
+
 ### Due dates
 
 The server works out due dates, not the model, so the same words at the same moment always give the same date. Claude passes along what you said (*"Friday 3pm"*, *"tomorrow"*, *"in 2 hours"*, *"next week"*) and StickyInc reads it with [chrono](https://github.com/wanasit/chrono), in your time zone.

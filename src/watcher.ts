@@ -12,6 +12,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { addTaskUnique } from "./db.js";
 import { resolveDue, type Due } from "./dates.js";
+import { cap, EXCERPT_MAX } from "./provenance.js";
 import { resolveLLMProvider, type LLMProvider } from "./providers/index.js";
 
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
@@ -70,6 +71,7 @@ function listJsonlFiles(): string[] {
 
 interface TranscriptLine {
   type?: string;
+  uuid?: string;
   message?: { role?: string; content?: unknown };
   timestamp?: string;
 }
@@ -93,13 +95,15 @@ function extractText(message: TranscriptLine["message"]): string {
 interface Commitment {
   text: string;
   due: Due | null;
+  /** The sentence it came from, per the model; checked by excerptFor. */
+  quote: string | null;
 }
 
 const EXTRACTION_SYSTEM = `You extract actionable commitments from a message.
 
 A "commitment" is something the speaker said they will or should do. Examples:
-  - "I need to call the dentist" → { "text": "Call the dentist", "due": null }
-  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due": "tomorrow" }
+  - "I need to call the dentist" → { "text": "Call the dentist", "due": null, "quote": "I need to call the dentist" }
+  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due": "tomorrow", "quote": "Let me email Sarah tomorrow" }
 
 Ignore:
   - Hypotheticals ("I could do X")
@@ -107,7 +111,7 @@ Ignore:
   - Generic questions or musings
 
 Output ONLY a JSON object, no prose:
-{ "commitments": [{ "text": "...", "due": "<the words that say when, or null>" }] }
+{ "commitments": [{ "text": "...", "due": "<the words that say when, or null>", "quote": "<the sentence it came from, copied exactly>" }] }
 
 Empty array if nothing qualifies. "due" copies the speaker's date/time words ("Friday 3pm", "next week"); don't work out a date. If an hour has no am/pm, add the one the speaker means.`;
 
@@ -138,14 +142,27 @@ function parseCommitments(raw: string, said: Date): Commitment[] {
     if (!c || typeof c !== "object") continue;
     const text = (c as { text?: unknown }).text;
     const due = (c as { due?: unknown }).due;
+    const quote = (c as { quote?: unknown }).quote;
     if (typeof text === "string" && text.trim().length > 0) {
       out.push({
         text: text.trim(),
         due: typeof due === "string" && due.trim() ? resolveDue(due, said) : null,
+        quote: typeof quote === "string" ? quote : null,
       });
     }
   }
   return out;
+}
+
+/**
+ * The words shown as a task's provenance: the model's quote if it really is
+ * in the message, so the pane never shows words nobody said; otherwise the
+ * start of the message.
+ */
+function excerptFor(message: string, quote: string | null): string | null {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  if (quote && norm(quote) && norm(message).includes(norm(quote))) return cap(quote, EXCERPT_MAX);
+  return cap(message, EXCERPT_MAX);
 }
 
 async function extract(
@@ -276,7 +293,17 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
         try {
           const commitments = await extract(provider, role ?? "user", text, said);
           for (const c of commitments) {
-            const { task, inserted } = addTaskUnique(c.text, c.due, "passive-extract");
+            const { task, inserted } = addTaskUnique({
+              text: c.text,
+              due: c.due,
+              source: "passive-extract",
+              from: {
+                client: "Claude Code",
+                // The transcript file and message: enough to find it again.
+                ref: obj.uuid ? `${file}#${obj.uuid}` : file,
+                excerpt: excerptFor(text, c.quote),
+              },
+            });
             if (inserted && verbose) {
               const due = c.due ? ` (due ${c.due.at ?? "?"} from "${c.due.phrase}")` : "";
               console.error(`  + #${task.id} ${c.text}${due}`);

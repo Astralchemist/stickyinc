@@ -7,21 +7,26 @@ import { listTasksSchema, handleListTasks } from "./tools/list_tasks.js";
 import { completeTaskSchema, handleCompleteTask } from "./tools/complete_task.js";
 import { scheduleEventSchema, handleScheduleEvent } from "./tools/schedule_event.js";
 import { listDoneSchema, handleListDone } from "./tools/list_done.js";
+import { clientLabel } from "./provenance.js";
 
 const server = new McpServer({
   name: "stickyinc",
   version: "0.5.2",
 });
 
+/** The connected app, from the MCP handshake; tasks record it as provenance. */
+const client = () => clientLabel(server.server.getClientVersion());
+
 server.registerTool(
   "add_task",
   {
     title: "Add Task",
     description:
-      "Add a todo to StickyInc. The user sees it appear in their floating pane.",
+      "Add a todo to StickyInc. The user sees it appear in their floating pane, and hovering " +
+      "over it shows context.excerpt: quote their words so they can tell where it came from.",
     inputSchema: addTaskSchema,
   },
-  handleAddTask
+  (args) => handleAddTask(args, client())
 );
 
 server.registerTool(
@@ -32,7 +37,7 @@ server.registerTool(
       "Parse a free-text phrase like 'call dentist Friday 3pm' into a task with optional due date, using the configured LLM (Anthropic/OpenRouter/OpenAI).",
     inputSchema: addTaskNaturalSchema,
   },
-  handleAddTaskNatural
+  (args) => handleAddTaskNatural(args, client())
 );
 
 server.registerTool(
@@ -74,7 +79,7 @@ server.registerTool(
       "Save an event as a StickyInc task due at its start time. StickyInc doesn't sync calendars; use a calendar connector for that.",
     inputSchema: scheduleEventSchema,
   },
-  handleScheduleEvent
+  (args) => handleScheduleEvent(args, client())
 );
 
 const transport = new StdioServerTransport();

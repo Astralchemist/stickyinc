@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 // addon can't be bundled or matched to an unknown Node ABI.
 import { DatabaseSync } from "node:sqlite";
 import type { Due } from "./dates.js";
+import type { Provenance } from "./provenance.js";
 import type { Task } from "./types.js";
 
 /**
@@ -57,7 +58,10 @@ db.exec(`
     due_at TEXT,
     due_phrase TEXT,
     source TEXT NOT NULL DEFAULT 'claude',
-    fingerprint TEXT
+    fingerprint TEXT,
+    source_client TEXT,
+    source_ref TEXT,
+    source_excerpt TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed_at);
   CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
@@ -94,6 +98,12 @@ db.exec(`
   // The words a due date was read from. Node-only: the pane never sets it.
   if (!cols.some((c) => c.name === "due_phrase")) {
     db.exec(`ALTER TABLE tasks ADD COLUMN due_phrase TEXT`);
+  }
+  // Provenance, shown on hover in the pane (which adds these columns too).
+  for (const col of ["source_client", "source_ref", "source_excerpt"]) {
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN ${col} TEXT`);
+    }
   }
   // Backfill uuid for any rows created before v0.6.
   const pending = db.prepare(`SELECT id FROM tasks WHERE uuid IS NULL`).all() as {
@@ -174,8 +184,9 @@ function recordEvent(
 }
 
 const insertTaskStmt = db.prepare(
-  `INSERT INTO tasks (uuid, text, due_at, due_phrase, source, fingerprint)
-   VALUES (?, ?, ?, ?, ?, ?) RETURNING *`
+  `INSERT INTO tasks (uuid, text, due_at, due_phrase, source, fingerprint,
+                      source_client, source_ref, source_excerpt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
 );
 
 const findOpenByFingerprintStmt = db.prepare(
@@ -228,29 +239,38 @@ export function fingerprint(text: string): string {
     .slice(0, 16);
 }
 
+export interface NewTask {
+  text: string;
+  due?: Due | null;
+  /** How it was added: "claude", "calendar", "passive-extract", "quickadd". */
+  source?: string;
+  from?: Provenance;
+}
+
 /**
  * Insert a task and its create event; call inside inTransaction. The event
- * also records when a due phrase was read, so the parse can be replayed.
+ * also records when a due phrase was read, so the parse can be replayed,
+ * and the provenance, so it travels with the task.
  */
-function insertTask(text: string, due: Due | null, source: string): Task {
+function insertTask({ text, due = null, source = "claude", from }: NewTask): Task {
   const taskUuid = randomUUID();
-  const dueAt = due?.at ?? null;
-  const duePhrase = due?.phrase ?? null;
+  const row = {
+    due_at: due?.at ?? null,
+    due_phrase: due?.phrase ?? null,
+    source_client: from?.client ?? null,
+    source_ref: from?.ref ?? null,
+    source_excerpt: from?.excerpt ?? null,
+  };
   const task = insertTaskStmt.get(
-    taskUuid, text, dueAt, duePhrase, source, fingerprint(text)
+    taskUuid, text, row.due_at, row.due_phrase, source, fingerprint(text),
+    row.source_client, row.source_ref, row.source_excerpt
   ) as unknown as Task;
-  recordEvent("create", taskUuid, {
-    text,
-    due_at: dueAt,
-    due_phrase: duePhrase,
-    due_ref: due?.ref ?? null,
-    source,
-  });
+  recordEvent("create", taskUuid, { text, ...row, due_ref: due?.ref ?? null, source });
   return task;
 }
 
-export function addTask(text: string, due: Due | null = null, source = "claude"): Task {
-  return inTransaction(() => insertTask(text, due, source));
+export function addTask(t: NewTask): Task {
+  return inTransaction(() => insertTask(t));
 }
 
 /**
@@ -258,15 +278,11 @@ export function addTask(text: string, due: Due | null = null, source = "claude")
  * Returns the new task, or the existing duplicate when skipped.
  * The event is only emitted on actual insertion.
  */
-export function addTaskUnique(
-  text: string,
-  due: Due | null = null,
-  source = "claude"
-): { task: Task; inserted: boolean } {
+export function addTaskUnique(t: NewTask): { task: Task; inserted: boolean } {
   return inTransaction((): { task: Task; inserted: boolean } => {
-    const existing = findOpenByFingerprintStmt.get(fingerprint(text)) as Task | undefined;
+    const existing = findOpenByFingerprintStmt.get(fingerprint(t.text)) as Task | undefined;
     if (existing) return { task: existing, inserted: false };
-    return { task: insertTask(text, due, source), inserted: true };
+    return { task: insertTask(t), inserted: true };
   });
 }
 

@@ -27,6 +27,30 @@ pub struct Task {
     pub completed_at: Option<String>,
     pub due_at: Option<String>,
     pub source: String,
+    /// Provenance, shown on hover: the app it came from, a pointer back,
+    /// and the words it came from. Set by the MCP server and the watcher.
+    pub source_client: Option<String>,
+    pub source_ref: Option<String>,
+    pub source_excerpt: Option<String>,
+}
+
+/// The columns `task_from_row` reads, in its order.
+const TASK_COLS: &str =
+    "id, uuid, text, created_at, completed_at, due_at, source, source_client, source_ref, source_excerpt";
+
+fn task_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
+    Ok(Task {
+        id: row.get(0)?,
+        uuid: row.get(1)?,
+        text: row.get(2)?,
+        created_at: row.get(3)?,
+        completed_at: row.get(4)?,
+        due_at: row.get(5)?,
+        source: row.get(6)?,
+        source_client: row.get(7)?,
+        source_ref: row.get(8)?,
+        source_excerpt: row.get(9)?,
+    })
 }
 
 struct DbPath(PathBuf);
@@ -56,7 +80,10 @@ fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
             completed_at TEXT,
             due_at TEXT,
             source TEXT NOT NULL DEFAULT 'claude',
-            fingerprint TEXT
+            fingerprint TEXT,
+            source_client TEXT,
+            source_ref TEXT,
+            source_excerpt TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed_at);
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
@@ -84,6 +111,7 @@ fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
     migrate_add_fingerprint(&conn)?;
     migrate_add_uuid(&conn)?;
     migrate_fingerprint_sha256(&conn)?;
+    migrate_add_provenance(&conn)?;
     // Phase 3: indexes on migrated columns.
     conn.execute_batch(
         r#"
@@ -130,6 +158,21 @@ fn migrate_add_fingerprint(conn: &Connection) -> rusqlite::Result<()> {
     };
     if !has_col {
         conn.execute("ALTER TABLE tasks ADD COLUMN fingerprint TEXT", [])?;
+    }
+    Ok(())
+}
+
+/// Idempotent migration: the provenance columns task_from_row reads. The
+/// Node side adds them too, so whichever program opens an older DB first
+/// brings it up to date.
+fn migrate_add_provenance(conn: &Connection) -> rusqlite::Result<()> {
+    for col in ["source_client", "source_ref", "source_excerpt"] {
+        let has_col = conn
+            .prepare("SELECT 1 FROM pragma_table_info('tasks') WHERE name = ?")?
+            .exists([col])?;
+        if !has_col {
+            conn.execute(&format!("ALTER TABLE tasks ADD COLUMN {col} TEXT"), [])?;
+        }
     }
     Ok(())
 }
@@ -227,25 +270,15 @@ fn list_open_tasks(db: tauri::State<'_, Mutex<DbPath>>) -> Result<Vec<Task>, Str
     let path = db.lock().unwrap().0.clone();
     let conn = open_db(&path).map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare(
-            "SELECT id, uuid, text, created_at, completed_at, due_at, source
+        .prepare(&format!(
+            "SELECT {TASK_COLS}
              FROM tasks
              WHERE completed_at IS NULL
              ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at ASC",
-        )
+        ))
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([], |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                uuid: row.get(1)?,
-                text: row.get(2)?,
-                created_at: row.get(3)?,
-                completed_at: row.get(4)?,
-                due_at: row.get(5)?,
-                source: row.get(6)?,
-            })
-        })
+        .query_map([], task_from_row)
         .map_err(|e| e.to_string())?;
     let mut out = Vec::new();
     for r in rows {
@@ -264,26 +297,16 @@ fn list_recent_done(
     let conn = open_db(&path).map_err(|e| e.to_string())?;
     let modifier = format!("-{} hours", hours);
     let mut stmt = conn
-        .prepare(
-            "SELECT id, uuid, text, created_at, completed_at, due_at, source
+        .prepare(&format!(
+            "SELECT {TASK_COLS}
              FROM tasks
              WHERE completed_at IS NOT NULL
                AND completed_at >= datetime('now', ?)
              ORDER BY completed_at DESC",
-        )
+        ))
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([modifier], |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                uuid: row.get(1)?,
-                text: row.get(2)?,
-                created_at: row.get(3)?,
-                completed_at: row.get(4)?,
-                due_at: row.get(5)?,
-                source: row.get(6)?,
-            })
-        })
+        .query_map([modifier], task_from_row)
         .map_err(|e| e.to_string())?;
     let mut out = Vec::new();
     for r in rows {
@@ -304,27 +327,17 @@ fn list_archived_done(
     let conn = open_db(&path).map_err(|e| e.to_string())?;
     let modifier = format!("-{} hours", hours);
     let mut stmt = conn
-        .prepare(
-            "SELECT id, uuid, text, created_at, completed_at, due_at, source
+        .prepare(&format!(
+            "SELECT {TASK_COLS}
              FROM tasks
              WHERE completed_at IS NOT NULL
                AND completed_at < datetime('now', ?)
              ORDER BY completed_at DESC
              LIMIT ?",
-        )
+        ))
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(rusqlite::params![modifier, limit], |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                uuid: row.get(1)?,
-                text: row.get(2)?,
-                created_at: row.get(3)?,
-                completed_at: row.get(4)?,
-                due_at: row.get(5)?,
-                source: row.get(6)?,
-            })
-        })
+        .query_map(rusqlite::params![modifier, limit], task_from_row)
         .map_err(|e| e.to_string())?;
     let mut out = Vec::new();
     for r in rows {
@@ -375,19 +388,9 @@ fn add_task_quickadd(
 
     let task = tx
         .query_row(
-            "SELECT id, uuid, text, created_at, completed_at, due_at, source FROM tasks WHERE uuid = ?",
+            &format!("SELECT {TASK_COLS} FROM tasks WHERE uuid = ?"),
             [&task_uuid],
-            |row| {
-                Ok(Task {
-                    id: row.get(0)?,
-                    uuid: row.get(1)?,
-                    text: row.get(2)?,
-                    created_at: row.get(3)?,
-                    completed_at: row.get(4)?,
-                    due_at: row.get(5)?,
-                    source: row.get(6)?,
-                })
-            },
+            task_from_row,
         )
         .map_err(|e| e.to_string())?;
 
@@ -506,19 +509,9 @@ fn complete_task(id: i64, db: tauri::State<'_, Mutex<DbPath>>) -> Result<Option<
 
     let task = tx
         .query_row(
-            "SELECT id, uuid, text, created_at, completed_at, due_at, source FROM tasks WHERE id = ?",
+            &format!("SELECT {TASK_COLS} FROM tasks WHERE id = ?"),
             [id],
-            |row| {
-                Ok(Task {
-                    id: row.get(0)?,
-                    uuid: row.get(1)?,
-                    text: row.get(2)?,
-                    created_at: row.get(3)?,
-                    completed_at: row.get(4)?,
-                    due_at: row.get(5)?,
-                    source: row.get(6)?,
-                })
-            },
+            task_from_row,
         )
         .optional()
         .map_err(|e| e.to_string())?;
@@ -708,6 +701,36 @@ mod tests {
             .query_row("SELECT fingerprint FROM tasks WHERE uuid = 'u1'", [], |r| r.get(0))
             .unwrap();
         assert_eq!(fp, "ae50ef35f8b6be0f");
+        drop(conn);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn provenance_columns_are_added_to_old_dbs_and_read() {
+        let path = std::env::temp_dir().join(format!("stickyinc-test-{}.db", uuid::Uuid::new_v4()));
+        // A tasks table from before provenance, with a task in it.
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, text TEXT NOT NULL,
+               created_at TEXT NOT NULL DEFAULT (datetime('now')), completed_at TEXT, due_at TEXT,
+               source TEXT NOT NULL DEFAULT 'claude', fingerprint TEXT);
+             INSERT INTO tasks (uuid, text) VALUES ('old', 'Old task');",
+        )
+        .unwrap();
+        drop(conn);
+        let conn = open_db(&path).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (uuid, text, source_client, source_excerpt)
+             VALUES ('new', 'Email Sarah', 'Claude Code', 'I need to email Sarah')",
+            [],
+        )
+        .unwrap();
+        let sql = format!("SELECT {TASK_COLS} FROM tasks WHERE uuid = ?");
+        let old = conn.query_row(&sql, ["old"], task_from_row).unwrap();
+        assert_eq!((old.source_client, old.source_excerpt), (None, None));
+        let new = conn.query_row(&sql, ["new"], task_from_row).unwrap();
+        assert_eq!(new.source_client.as_deref(), Some("Claude Code"));
+        assert_eq!(new.source_excerpt.as_deref(), Some("I need to email Sarah"));
         drop(conn);
         let _ = std::fs::remove_file(&path);
     }

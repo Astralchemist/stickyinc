@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
 import { describeDue, resolveDue, type Due } from "../dates.js";
+import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
 import { resolveLLMProvider } from "../providers/index.js";
 
 export const addTaskNaturalSchema = {
@@ -10,6 +11,7 @@ export const addTaskNaturalSchema = {
     .describe(
       "Free-text phrase like 'call dentist Friday 3pm' or 'buy bread'. Will be parsed by the configured LLM."
     ),
+  context: contextSchema,
 };
 
 interface ParsedTask {
@@ -81,10 +83,13 @@ async function parseTask(input: string): Promise<ParsedTask> {
   };
 }
 
-export async function handleAddTaskNatural(args: { input: string }) {
+export async function handleAddTaskNatural(
+  args: { input: string; context?: ToolContext },
+  client: string | null
+) {
   try {
     const parsed = await parseTask(args.input);
-    const task = addTask(parsed.text, parsed.due);
+    const task = addTask({ text: parsed.text, due: parsed.due, from: fromTool(client, args.context) });
     const due = parsed.due ? `, ${describeDue(parsed.due)}` : "";
     return {
       content: [

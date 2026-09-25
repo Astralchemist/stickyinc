@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
 import { describeDue, resolveDue } from "../dates.js";
+import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
 
 export const addTaskSchema = {
   text: z.string().min(1).describe("The task text, e.g. 'Call the dentist'"),
@@ -13,9 +14,13 @@ export const addTaskSchema = {
         "Add am/pm to a bare hour. ISO 8601 works too: with Z or an offset it's exact, without one " +
         "it's local time. No time of day means 09:00 local."
     ),
+  context: contextSchema,
 };
 
-export async function handleAddTask(args: { text: string; due_at?: string }) {
+export async function handleAddTask(
+  args: { text: string; due_at?: string; context?: ToolContext },
+  client: string | null
+) {
   const due = args.due_at ? resolveDue(args.due_at) : null;
   if (due && !due.at) {
     return {
@@ -30,7 +35,7 @@ export async function handleAddTask(args: { text: string; due_at?: string }) {
       isError: true,
     };
   }
-  const task = addTask(args.text, due);
+  const task = addTask({ text: args.text, due, from: fromTool(client, args.context) });
   const dueText = due ? `, ${describeDue(due)}` : "";
   return {
     content: [

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
 import { describeDue, resolveDue } from "../dates.js";
+import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
 
 export const scheduleEventSchema = {
   title: z.string().min(1).describe("Event title"),
@@ -12,6 +13,7 @@ export const scheduleEventSchema = {
     ),
   end: z.string().optional().describe("Optional end, ISO 8601. Echoed back, not stored."),
   notes: z.string().optional().describe("Optional notes/description"),
+  context: contextSchema,
 };
 
 /**
@@ -20,12 +22,16 @@ export const scheduleEventSchema = {
  * StickyInc intentionally doesn't ship its own OAuth flow to keep setup
  * friction-free.
  */
-export async function handleScheduleEvent(args: {
-  title: string;
-  start: string;
-  end?: string;
-  notes?: string;
-}) {
+export async function handleScheduleEvent(
+  args: {
+    title: string;
+    start: string;
+    end?: string;
+    notes?: string;
+    context?: ToolContext;
+  },
+  client: string | null
+) {
   const start = resolveDue(args.start);
   if (!start.at) {
     return {
@@ -41,7 +47,7 @@ export async function handleScheduleEvent(args: {
     };
   }
   const text = args.notes ? `${args.title} — ${args.notes}` : args.title;
-  const task = addTask(text, start, "calendar");
+  const task = addTask({ text, due: start, source: "calendar", from: fromTool(client, args.context) });
   return {
     content: [
       {

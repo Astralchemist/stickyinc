@@ -227,6 +227,35 @@ li.task.done .text {
 }
 .due.overdue { color: var(--accent); }
 
+/* Provenance card: where a task came from, after resting on it. It floats
+   over the rows below (or above) and ignores the pointer, so nothing moves
+   under the cursor and clicks still reach the task. */
+#provenance {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  z-index: 5;
+  padding: 9px 11px;
+  background: rgba(38, 38, 44, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.45;
+}
+#provenance[hidden] { display: none; }
+#provenance .excerpt {
+  margin: 0 0 5px;
+  color: var(--fg);
+  font-style: italic;
+  word-wrap: break-word;
+}
+#provenance .meta {
+  font-size: 10px;
+  color: var(--muted);
+}
+
 /* Recently done — visible strike-through for 24h */
 #recent-section {
   margin-top: 12px;
