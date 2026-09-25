@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
+import { timeContext, toStoredDue } from "../dates.js";
 import { resolveLLMProvider } from "../providers/index.js";
 
 export const addTaskNaturalSchema = {
@@ -21,15 +22,15 @@ const SYSTEM_PROMPT = `You convert a user phrase into a JSON task description.
 Output ONLY a single JSON object, no prose, no code fences. Schema:
 {
   "text": "<the thing to do, concise, no date>",
-  "due_at": "<ISO 8601 UTC datetime or null>"
+  "due_at": "<local date-time YYYY-MM-DDTHH:MM, or null>"
 }
 
 Rules:
 - "text" is the action, cleaned of date/time phrasing.
-- "due_at" is UTC ISO 8601 (e.g. "2026-04-25T15:00:00Z") or null if no time implied.
-- Relative dates resolve against the current moment provided.
-- If a date is given without a time, default to 09:00 local → UTC.
-- If only a time is given, default to today (or tomorrow if the time has passed).`;
+- "due_at" is the user's local time, with no offset or Z, or null if no time is implied. Take weekdays and "tomorrow" from the dates listed below.
+- A weekday means its next occurrence; if that is today and the time has already passed, the one a week later.
+- If a date is given without a time, use 09:00.
+- If only a time is given, use today (or tomorrow if that time has passed).`;
 
 function stripFences(s: string): string {
   return s
@@ -60,11 +61,10 @@ async function parseTask(input: string): Promise<ParsedTask> {
     );
   }
 
-  const now = new Date().toISOString();
   const res = await provider.chat({
     system: SYSTEM_PROMPT,
     messages: [
-      { role: "user", content: `Current time: ${now}\n\nPhrase: ${input}` },
+      { role: "user", content: `${timeContext()}\n\nPhrase: ${input}` },
     ],
     response_format: "json",
     max_tokens: 200,
@@ -77,10 +77,7 @@ async function parseTask(input: string): Promise<ParsedTask> {
   }
   return {
     text: parsed.text,
-    due_at:
-      typeof parsed.due_at === "string" && parsed.due_at.length > 0
-        ? parsed.due_at
-        : null,
+    due_at: typeof parsed.due_at === "string" ? toStoredDue(parsed.due_at) : null,
   };
 }
 

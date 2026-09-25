@@ -357,21 +357,43 @@ fn add_task_quickadd(
     Ok(task)
 }
 
+/// Split a trailing " due:YYYY-MM-DD" or " due:YYYY-MM-DDTHH:MM[:SS]" off
+/// quick-add text. Times are the user's local time (a trailing Z means UTC);
+/// a bare date means 09:00 local. Stored as UTC ISO 8601, the same shape the
+/// MCP server writes. Anything unparseable stays part of the task text
+/// rather than being stored as a bogus due date.
 fn parse_inline_due(text: &str) -> (String, Option<String>) {
-    // Look for a trailing "due:YYYY-MM-DD" or "due:YYYY-MM-DDTHH:MM"
-    if let Some(idx) = text.rfind(" due:") {
-        let (head, tail) = text.split_at(idx);
-        let due_raw = tail.trim_start_matches(" due:").trim();
-        if !due_raw.is_empty() {
-            let due = if due_raw.contains('T') {
-                format!("{}:00Z", due_raw.trim_end_matches('Z').trim_end_matches(":00"))
-            } else {
-                format!("{}T09:00:00Z", due_raw)
-            };
-            return (head.trim().to_string(), Some(due));
+    use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
+
+    let Some(idx) = text.rfind(" due:") else {
+        return (text.to_string(), None);
+    };
+    let (head, tail) = text.split_at(idx);
+    let raw = tail.trim_start_matches(" due:").trim();
+    let (raw, is_utc) = match raw.strip_suffix('Z') {
+        Some(r) => (r, true),
+        None => (raw, false),
+    };
+    let naive = NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M")
+        .or_else(|_| NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S"))
+        .ok()
+        .or_else(|| {
+            NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+                .ok()
+                .and_then(|d| d.and_hms_opt(9, 0, 0))
+        });
+    let utc = naive.and_then(|n| {
+        if is_utc {
+            Some(Utc.from_utc_datetime(&n))
+        } else {
+            // earliest(): on a DST fall-back the wall time exists twice.
+            Local.from_local_datetime(&n).earliest().map(|t| t.with_timezone(&Utc))
         }
+    });
+    match utc {
+        Some(t) => (head.trim().to_string(), Some(t.format("%Y-%m-%dT%H:%M:%SZ").to_string())),
+        None => (text.to_string(), None),
     }
-    (text.to_string(), None)
 }
 
 fn fingerprint(text: &str) -> String {
@@ -576,4 +598,44 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn due_with_z_is_utc() {
+        assert_eq!(
+            parse_inline_due("ship it due:2026-04-25T15:30Z"),
+            ("ship it".to_string(), Some("2026-04-25T15:30:00Z".to_string()))
+        );
+    }
+
+    #[test]
+    fn bare_date_is_nine_am_local() {
+        use chrono::{DateTime, Local, Timelike};
+        let (text, due) = parse_inline_due("buy bread due:2026-04-25");
+        assert_eq!(text, "buy bread");
+        let local = DateTime::parse_from_rfc3339(&due.unwrap()).unwrap().with_timezone(&Local);
+        assert_eq!(local.format("%Y-%m-%d").to_string(), "2026-04-25");
+        assert_eq!((local.hour(), local.minute()), (9, 0));
+    }
+
+    #[test]
+    fn time_without_zone_is_local() {
+        use chrono::{DateTime, Local};
+        let (_, due) = parse_inline_due("call mum due:2026-04-25T15:30");
+        let local = DateTime::parse_from_rfc3339(&due.unwrap()).unwrap().with_timezone(&Local);
+        assert_eq!(local.format("%Y-%m-%dT%H:%M").to_string(), "2026-04-25T15:30");
+    }
+
+    #[test]
+    fn unparseable_due_stays_in_text() {
+        assert_eq!(
+            parse_inline_due("pay rent due:tomorrow"),
+            ("pay rent due:tomorrow".to_string(), None)
+        );
+        assert_eq!(parse_inline_due("no due here"), ("no due here".to_string(), None));
+    }
 }

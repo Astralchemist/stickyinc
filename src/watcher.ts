@@ -11,6 +11,7 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { addTaskUnique } from "./db.js";
+import { timeContext, toStoredDue } from "./dates.js";
 import { resolveLLMProvider, type LLMProvider } from "./providers/index.js";
 
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
@@ -98,7 +99,7 @@ const EXTRACTION_SYSTEM = `You extract actionable commitments from a message.
 
 A "commitment" is something the speaker said they will or should do. Examples:
   - "I need to call the dentist" → { "text": "Call the dentist", "due_at": null }
-  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due_at": "<tomorrow UTC>" }
+  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due_at": "<tomorrow's date>T09:00" }
 
 Ignore:
   - Hypotheticals ("I could do X")
@@ -106,9 +107,9 @@ Ignore:
   - Generic questions or musings
 
 Output ONLY a JSON object, no prose:
-{ "commitments": [{ "text": "...", "due_at": "<ISO 8601 UTC or null>" }] }
+{ "commitments": [{ "text": "...", "due_at": "<local YYYY-MM-DDTHH:MM or null>" }] }
 
-Empty array if nothing qualifies. Relative dates resolve against the "Current time" you are given. If a date has no time, default to 09:00 local → UTC.`;
+Empty array if nothing qualifies. due_at is the user's local time, with no offset or Z; take weekdays and "tomorrow" from the dates listed below. If a date has no time, use 09:00.`;
 
 function stripFences(s: string): string {
   return s.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
@@ -139,7 +140,7 @@ function parseCommitments(raw: string): Commitment[] {
     if (typeof text === "string" && text.trim().length > 0) {
       out.push({
         text: text.trim(),
-        due_at: typeof due === "string" && due.length > 0 ? due : null,
+        due_at: typeof due === "string" ? toStoredDue(due) : null,
       });
     }
   }
@@ -148,13 +149,12 @@ function parseCommitments(raw: string): Commitment[] {
 
 async function extract(provider: LLMProvider, speaker: string, text: string): Promise<Commitment[]> {
   if (text.trim().length < 4) return [];
-  const now = new Date().toISOString();
   const res = await provider.chat({
     system: EXTRACTION_SYSTEM,
     messages: [
       {
         role: "user",
-        content: `Current time: ${now}\nSpeaker: ${speaker}\n\nMessage:\n${text.slice(0, 4000)}`,
+        content: `${timeContext()}\nSpeaker: ${speaker}\n\nMessage:\n${text.slice(0, 4000)}`,
       },
     ],
     response_format: "json",

@@ -166,7 +166,8 @@ const findOpenByFingerprintStmt = db.prepare(
 );
 
 const countDoneTodayStmt = db.prepare(
-  `SELECT COUNT(*) as n FROM tasks WHERE completed_at IS NOT NULL AND date(completed_at) = date('now')`
+  `SELECT COUNT(*) as n FROM tasks WHERE completed_at IS NOT NULL
+     AND date(completed_at, 'localtime') = date('now', 'localtime')`
 );
 
 const selectOpenStmt = db.prepare(

@@ -575,45 +575,12 @@ pub fn wizard_mark_complete(app: tauri::AppHandle) -> Result<(), String> {
     if !cfg.is_object() {
         cfg = serde_json::json!({});
     }
-    cfg["completed_at"] = serde_json::Value::String(chrono_like_now());
+    cfg["completed_at"] = serde_json::Value::String(chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string());
     cfg["version"] = serde_json::json!("0.5.1");
     write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
     // Tell the main pane window to flip out of hidden/bulge mode and show the strip.
     let _ = app.emit("setup-complete", ());
     Ok(())
-}
-
-fn chrono_like_now() -> String {
-    // Avoid pulling chrono just for this — format in UTC via std.
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    // Simple YYYY-MM-DDTHH:MM:SSZ from epoch seconds.
-    // Using a tiny conversion; good enough for a timestamp.
-    let (year, month, day, hour, min, sec) = epoch_to_ymdhms(now);
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
-}
-
-fn epoch_to_ymdhms(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
-    let days = (secs / 86400) as i64;
-    let sec_of_day = (secs % 86400) as u32;
-    let hour = sec_of_day / 3600;
-    let min = (sec_of_day % 3600) / 60;
-    let sec = sec_of_day % 60;
-
-    // Algorithm from Howard Hinnant's days_from_civil, adapted.
-    let z = days + 719468;
-    let era = z.div_euclid(146097);
-    let doe = (z - era * 146097) as u32;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = (yoe as i64) + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = if month <= 2 { y + 1 } else { y };
-    (year, month, day, hour, min, sec)
 }
 
 pub fn setup_is_complete() -> bool {

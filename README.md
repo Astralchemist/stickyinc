@@ -123,7 +123,7 @@ The task appears in your pane before Claude finishes its reply.
 
 ### Quick-add without a chat
 
-While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A centered input appears — type, hit Enter, done. Inline dates work: `buy bread due:2026-04-25`.
+While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A centered input appears — type, hit Enter, done. Inline dates work, in your local time: `buy bread due:2026-04-25` (9 am) or `call mum due:2026-04-25T15:30`.
 
 ---
 

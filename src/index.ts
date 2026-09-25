@@ -71,7 +71,7 @@ server.registerTool(
   {
     title: "Schedule Event",
     description:
-      "Schedule an event. v0.1 stores as a dated task; v0.3 will call Google Calendar create_event.",
+      "Save an event as a StickyInc task due at its start time. StickyInc doesn't sync calendars; use a calendar connector for that.",
     inputSchema: scheduleEventSchema,
   },
   handleScheduleEvent
