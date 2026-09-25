@@ -46,7 +46,9 @@ const bulgeEl = document.getElementById("bulge") as HTMLDivElement;
 const bulgeTextEl = document.getElementById("bulge-text") as HTMLSpanElement;
 const bulgeIconEl = document.getElementById("bulge-icon") as HTMLSpanElement;
 
-let currentMode: Mode = "strip";
+// null until bootstrap's first setMode, so that call always applies: the
+// window starts 8px wide at the top-left (tauri.conf.json) with no class.
+let currentMode: Mode | null = null;
 let setupComplete = false;
 let lastBulgeAt = 0;
 let bulgeTimer: number | null = null;
@@ -82,7 +84,7 @@ async function setMode(mode: Mode): Promise<void> {
   if (mode === currentMode) return;
   // Grow the window BEFORE the class swap so content has room; shrink AFTER
   // the class swap so the retract animation plays in-frame.
-  const growing = modeWidth(mode) > modeWidth(currentMode);
+  const growing = currentMode === null || modeWidth(mode) > modeWidth(currentMode);
   if (growing) {
     await positionWindow(modeWidth(mode));
     body.className = mode;
@@ -153,12 +155,13 @@ function showProvenance(li: HTMLElement, task: Task): void {
   provenanceEl.appendChild(meta);
   provenanceEl.hidden = false;
 
-  // Below the task if it fits, else above; #pane is the positioning box.
+  // Below the task if it fits in the window (it may hang past the bottom of
+  // a short pane), else above; #pane is the positioning box.
   const pane = paneEl.getBoundingClientRect();
   const row = li.getBoundingClientRect();
   const h = provenanceEl.offsetHeight;
   const below = row.bottom - pane.top + 4;
-  const top = below + h <= pane.height - 8 ? below : row.top - pane.top - h - 4;
+  const top = pane.top + below + h <= window.innerHeight - 8 ? below : row.top - pane.top - h - 4;
   provenanceEl.style.top = `${Math.max(8, top)}px`;
 }
 
@@ -406,11 +409,11 @@ async function bootstrap(): Promise<void> {
 
   document.getElementById("strip")?.addEventListener("mouseenter", expand);
   document.getElementById("pane")?.addEventListener("mouseenter", expand);
-  document.getElementById("pane")?.addEventListener("mouseleave", collapse);
+  // Close on leaving the window, not the pane: the pane is only as tall as
+  // its tasks, and the edge may be hovered well below it. Open, the window
+  // is the pane's full-height column, so moving up to the pane keeps it open.
+  document.documentElement.addEventListener("mouseleave", collapse);
   tasksEl.addEventListener("scroll", hideProvenance);
-  document.getElementById("strip")?.addEventListener("mouseleave", (e) => {
-    if (!(e.relatedTarget as Element)?.closest?.("#pane")) collapse();
-  });
 
   document.getElementById("setup-link")?.addEventListener("click", () => {
     void invoke("open_wizard");

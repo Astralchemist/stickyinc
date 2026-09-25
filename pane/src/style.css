@@ -120,17 +120,20 @@ body.bulge #bulge.clickable { pointer-events: auto; }
   text-overflow: ellipsis;
 }
 
-/* Pane — hidden by default, revealed when expanded */
+/* Pane — hidden by default, revealed when expanded. As tall as its tasks,
+   up to the full screen, where the task list starts to scroll. The window
+   stays full height so the whole edge still opens it. */
 #pane {
   position: fixed;
   top: 0;
   right: 0;
   width: var(--pane-w);
-  height: var(--pane-h);
+  max-height: var(--pane-h);
   background: var(--bg);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   border-top-left-radius: var(--radius);
   border-bottom-left-radius: var(--radius);
   transform: translateX(100%);
@@ -169,7 +172,8 @@ ul#tasks {
   padding: 0;
   margin: 0;
   overflow-y: auto;
-  flex: 1;
+  flex: 0 1 auto;
+  min-height: 0;
 }
 ul#tasks::-webkit-scrollbar { width: 4px; }
 ul#tasks::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
