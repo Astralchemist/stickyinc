@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { addTask } from "../db.js";
+import { addTaskUnique } from "../db.js";
 import { describeDue, resolveDue, type Due } from "../dates.js";
 import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
 import { resolveLLMProvider } from "../providers/index.js";
+import { alreadyListed } from "./duplicate.js";
 
 export const addTaskNaturalSchema = {
   input: z
@@ -89,7 +90,12 @@ export async function handleAddTaskNatural(
 ) {
   try {
     const parsed = await parseTask(args.input);
-    const task = addTask({ text: parsed.text, due: parsed.due, from: fromTool(client, args.context) });
+    const { task, inserted } = addTaskUnique({
+      text: parsed.text,
+      due: parsed.due,
+      from: fromTool(client, args.context),
+    });
+    if (!inserted) return { content: [{ type: "text" as const, text: alreadyListed(task) }] };
     const due = parsed.due ? `, ${describeDue(parsed.due)}` : "";
     return {
       content: [

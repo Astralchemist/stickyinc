@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { addTask } from "../db.js";
+import { addTaskUnique } from "../db.js";
 import { describeDue, resolveDue } from "../dates.js";
 import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
+import { alreadyListed } from "./duplicate.js";
 
 export const addTaskSchema = {
   text: z.string().min(1).describe("The task text, e.g. 'Call the dentist'"),
@@ -35,7 +36,8 @@ export async function handleAddTask(
       isError: true,
     };
   }
-  const task = addTask({ text: args.text, due, from: fromTool(client, args.context) });
+  const { task, inserted } = addTaskUnique({ text: args.text, due, from: fromTool(client, args.context) });
+  if (!inserted) return { content: [{ type: "text" as const, text: alreadyListed(task) }] };
   const dueText = due ? `, ${describeDue(due)}` : "";
   return {
     content: [

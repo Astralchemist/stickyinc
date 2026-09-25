@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { addTask } from "../db.js";
+import { addTaskUnique } from "../db.js";
 import { describeDue, resolveDue } from "../dates.js";
 import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
+import { alreadyListed } from "./duplicate.js";
 
 export const scheduleEventSchema = {
   title: z.string().min(1).describe("Event title"),
@@ -47,7 +48,13 @@ export async function handleScheduleEvent(
     };
   }
   const text = args.notes ? `${args.title} — ${args.notes}` : args.title;
-  const task = addTask({ text, due: start, source: "calendar", from: fromTool(client, args.context) });
+  const { task, inserted } = addTaskUnique({
+    text,
+    due: start,
+    source: "calendar",
+    from: fromTool(client, args.context),
+  });
+  if (!inserted) return { content: [{ type: "text" as const, text: alreadyListed(task) }] };
   return {
     content: [
       {

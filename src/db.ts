@@ -269,12 +269,9 @@ function insertTask({ text, due = null, source = "claude", from }: NewTask): Tas
   return task;
 }
 
-export function addTask(t: NewTask): Task {
-  return inTransaction(() => insertTask(t));
-}
-
 /**
- * Insert only if no open task with the same fingerprint exists.
+ * Insert only if no open task with the same fingerprint exists, so the
+ * watcher and Claude hearing the same sentence make one task, not two.
  * Returns the new task, or the existing duplicate when skipped.
  * The event is only emitted on actual insertion.
  */

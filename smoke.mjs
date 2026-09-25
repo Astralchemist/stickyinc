@@ -95,6 +95,9 @@ try {
   await tool("add_task_natural fails cleanly with no reachable LLM", "add_task_natural",
     { input: "buy bread tomorrow at 9am" }, { error: true, includes: ["Could not parse"] });
   await tool("add_task plain", "add_task", { text: "Call the dentist" }, { includes: ["#2"] });
+  // The watcher often adds a task before Claude's own add_task call lands.
+  await tool("add_task skips an identical open task", "add_task", { text: "call the  Dentist" },
+    { includes: ["Already on the list as #2", "Not added again"] });
   await tool("schedule_event", "schedule_event",
     { title: "Design review", start: "2026-04-23T10:00:00Z", end: "2026-04-23T11:00:00Z" },
     { includes: ["#3", "(2026-04-23T10:00:00Z)"] });
