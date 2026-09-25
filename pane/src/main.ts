@@ -5,6 +5,7 @@ import { currentMonitor } from "@tauri-apps/api/window";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { calendarFile } from "./calendar";
 import { reminderBody, remindersDue, tomorrowMorning } from "./reminders";
 
@@ -54,6 +55,7 @@ const body = document.body;
 const paneEl = document.getElementById("pane") as HTMLDivElement;
 const provenanceEl = document.getElementById("provenance") as HTMLDivElement;
 const tasksEl = document.getElementById("tasks") as HTMLUListElement;
+const stackEl = document.getElementById("stack") as HTMLElement;
 const countEl = document.getElementById("count") as HTMLSpanElement;
 const recentSection = document.getElementById("recent-section") as HTMLElement;
 const recentEl = document.getElementById("recent") as HTMLUListElement;
@@ -158,7 +160,8 @@ function formatAgo(sqliteUtc: string): string {
 function provenanceLine(task: Task): string {
   const app = task.source_client;
   const how =
-    task.source === "passive-extract" ? `Overheard in ${app ?? "Claude Code"}`
+    isClip(task) ? `Clipped in ${app ?? "your browser"} from ${new URL(task.source_ref!).hostname.replace(/^www\./, "")}`
+    : task.source === "passive-extract" ? `Overheard in ${app ?? "Claude Code"}`
     : task.source === "calendar" ? (app ? `Scheduled from ${app}` : "Scheduled by Claude")
     : app ? `Added from ${app}` : "Added by Claude";
   return `${how} · ${formatAgo(task.created_at)}`;
@@ -212,6 +215,95 @@ function attachProvenance(li: HTMLElement, task: Task): void {
   li.addEventListener("mouseleave", hideProvenance);
 }
 
+/** A task clipped from a web page by the browser extension. */
+function isClip(t: Task): boolean {
+  return t.source.startsWith("clip:") && Boolean(t.source_ref);
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/**
+ * The site's own favicon (asked of the site itself, so no third party
+ * learns what you clip), or the site's first letter if it has none.
+ */
+function favicon(url: string): HTMLElement {
+  const { origin, hostname } = new URL(url);
+  const img = el("img", "favicon");
+  img.alt = "";
+  img.src = `${origin}/favicon.ico`;
+  img.addEventListener(
+    "error",
+    () => img.replaceWith(el("span", "favicon letter", hostname.replace(/^www\./, "").charAt(0).toUpperCase() || "?")),
+    { once: true },
+  );
+  return img;
+}
+
+const INTENT_LABELS: Record<string, string> = { read: "Read", reply: "Reply", review: "Review", decide: "Decide" };
+
+/** Tick a task off: the row strikes through, then the list refreshes. */
+async function completeFrom(li: HTMLElement, task: Task): Promise<void> {
+  hideProvenance();
+  li.classList.add("done");
+  try {
+    await invoke("complete_task", { id: task.id });
+    setTimeout(() => refresh(), 450);
+  } catch (err) {
+    li.classList.remove("done");
+    console.error(err);
+  }
+}
+
+/** One clipped page as a tile: favicon, intent, title, due. Click to open the page. */
+function stackTile(task: Task, i: number): HTMLElement {
+  const li = el("li", "task tile");
+  li.dataset.id = String(task.id);
+  li.style.setProperty("--i", String(i));
+  const intent = task.source.slice("clip:".length);
+  const text = el("div", "tile-body");
+  text.append(
+    el("span", `intent intent-${intent}`, INTENT_LABELS[intent] ?? intent),
+    el("span", "tile-title", task.text.match(/“(.*)”$/)?.[1] ?? task.text),
+  );
+  if (task.due_at) text.append(el("span", "due" + (isOverdue(task.due_at) ? " overdue" : ""), formatDue(task.due_at)));
+  const check = el("div", "check");
+  check.title = "Done";
+  check.addEventListener("click", (e) => {
+    e.stopPropagation(); // the tile's own click opens the page
+    void completeFrom(li, task);
+  });
+  li.append(favicon(task.source_ref!), text, check);
+  li.addEventListener("click", () => void openUrl(task.source_ref!));
+  attachProvenance(li, task);
+  return li;
+}
+
+/**
+ * Pages clipped from the browser, Dock-style: a pile of favicons that fans
+ * out into tiles on hover, over the tasks below so nothing shifts.
+ */
+function renderStack(clips: Task[]): void {
+  stackEl.hidden = clips.length === 0;
+  stackEl.replaceChildren();
+  if (clips.length === 0) return;
+  const pile = el("div", "stack-pile");
+  clips.slice(0, 4).forEach((t, i) => {
+    const icon = favicon(t.source_ref!);
+    icon.style.setProperty("--i", String(i));
+    pile.append(icon);
+  });
+  const head = el("div", "stack-head");
+  head.append(pile, el("span", "stack-label", `Stack · ${clips.length}`));
+  const tiles = el("ul", "stack-tiles");
+  clips.forEach((t, i) => tiles.append(stackTile(t, i)));
+  stackEl.append(head, tiles);
+}
+
 function renderOpen(tasks: Task[]): void {
   tasksEl.innerHTML = "";
   countEl.textContent = `${tasks.length} open`;
@@ -219,6 +311,7 @@ function renderOpen(tasks: Task[]): void {
   const hasDue = tasks.some((t) => t.due_at && isOverdue(t.due_at));
   body.classList.toggle("has-due", hasDue);
 
+  renderStack(tasks.filter(isClip));
   if (tasks.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -227,7 +320,7 @@ function renderOpen(tasks: Task[]): void {
     return;
   }
 
-  for (const task of tasks) {
+  for (const task of tasks.filter((t) => !isClip(t))) {
     const li = document.createElement("li");
     li.className = "task";
     li.dataset.id = String(task.id);
@@ -251,17 +344,7 @@ function renderOpen(tasks: Task[]): void {
     li.appendChild(text);
     attachProvenance(li, task);
 
-    li.addEventListener("click", async () => {
-      hideProvenance();
-      li.classList.add("done");
-      try {
-        await invoke("complete_task", { id: task.id });
-        setTimeout(() => refresh(), 450);
-      } catch (err) {
-        li.classList.remove("done");
-        console.error(err);
-      }
-    });
+    li.addEventListener("click", () => void completeFrom(li, task));
 
     tasksEl.appendChild(li);
   }

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>StickyInc Clipper</title>
+    <style>
+      body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; color: #1c1c1e; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { color: #555; margin: 8px 0; }
+      label { display: block; margin: 20px 0 6px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #777; }
+      input { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid #ccc; border-radius: 8px; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .actions { display: flex; gap: 8px; margin-top: 12px; }
+      button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid #1c1c1e; background: #1c1c1e; color: #fff; cursor: pointer; }
+      button.ghost { background: transparent; color: #1c1c1e; }
+      #status { margin-top: 14px; min-height: 1.5em; }
+      .ok { color: #2e7d4f; }
+      .err { color: #c0392b; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #1c1c1e; color: #eee; }
+        p, label { color: #aaa; }
+        input { background: #2c2c2e; color: #eee; border-color: #444; }
+        button { background: #eee; color: #1c1c1e; border-color: #eee; }
+        button.ghost { background: transparent; color: #eee; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>StickyInc Clipper</h1>
+    <p>Right-click any page, link or selection, then choose <strong>Stack on StickyInc</strong> → Read, Reply, Review or Decide. It lands in the stack at the top of your StickyInc pane.</p>
+    <p>To connect, open StickyInc, click the gear at the bottom of the pane, then <strong>Browser clipper → Copy pairing code</strong>, and paste it here.</p>
+
+    <label for="code">Pairing code</label>
+    <input id="code" autocomplete="off" spellcheck="false" placeholder="Paste the code from StickyInc" />
+    <div class="actions">
+      <button id="save">Save and test</button>
+      <button id="test" class="ghost">Test connection</button>
+    </div>
+    <div id="status" role="status"></div>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

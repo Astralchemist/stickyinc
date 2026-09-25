@@ -500,6 +500,16 @@ function bind(): void {
   });
   $("#settings-done").addEventListener("click", () => void invoke("wizard_close"));
   $("#settings-reminders-toggle").addEventListener("click", () => void toggleReminders());
+  $("#settings-copy-pairing").addEventListener("click", async (e) => {
+    const button = e.currentTarget as HTMLButtonElement;
+    try {
+      await navigator.clipboard.writeText(await invoke<string>("clip_pairing_code"));
+      button.textContent = "Copied";
+    } catch (err) {
+      $("#settings-clipper").textContent = `Couldn't get the pairing code: ${err instanceof Error ? err.message : String(err)}`;
+    }
+    setTimeout(() => (button.textContent = "Copy pairing code"), 2000);
+  });
   $("#settings-copy-calendar").addEventListener("click", async (e) => {
     const button = e.currentTarget as HTMLButtonElement;
     try {

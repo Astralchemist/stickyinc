@@ -36,6 +36,7 @@ export function describeTask(t: Task, now = Date.now()): string {
   const due = t.due_at
     ? ` — ${describeDue({ at: t.due_at, phrase: t.due_phrase ?? t.due_at, ref: "" })}`
     : "";
-  const line = `${mark} #${t.id} ${t.text} — added ${addedOn(t.created_at)} (${ago(t.created_at, now)})${from}${due}`;
+  const page = t.source_ref?.startsWith("http") ? ` — ${t.source_ref}` : "";
+  const line = `${mark} #${t.id} ${t.text} — added ${addedOn(t.created_at)} (${ago(t.created_at, now)})${from}${due}${page}`;
   return t.source_excerpt ? `${line}\n    “${t.source_excerpt}”` : line;
 }

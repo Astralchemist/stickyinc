@@ -217,6 +217,83 @@ header #count {
   cursor: pointer;
 }
 
+/* Stack: pages clipped from the browser. A pile of favicons that fans out
+   into tiles on hover, floating over the tasks below so nothing shifts. */
+#stack { position: relative; margin: 0 0 10px; }
+.stack-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+}
+.stack-pile { position: relative; width: 42px; height: 20px; }
+.stack-pile .favicon {
+  position: absolute;
+  top: 0;
+  left: calc(var(--i) * 7px);
+  z-index: calc(10 - var(--i)); /* the first clip on top of the pile */
+  transform: rotate(calc((var(--i) - 1.5) * 7deg));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+#stack:hover .stack-pile .favicon { transform: translateX(calc(var(--i) * 3px)) rotate(0deg); }
+.stack-label { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+/* A light tile behind every favicon: most are drawn for light pages, and a
+   dark one (GitHub's) would vanish on the pane. */
+.favicon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  padding: 1px;
+  border-radius: 4px;
+  background: #ececf0;
+  object-fit: contain;
+}
+.favicon.letter {
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #3a3a42;
+}
+.stack-tiles {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  background: rgba(30, 30, 36, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+#stack:hover .stack-tiles { opacity: 1; pointer-events: auto; transform: none; }
+li.task.tile {
+  align-items: center;
+  padding: 7px 6px;
+  opacity: 0;
+  transform: translateY(calc(var(--i) * -10px)) scale(0.96);
+  transition: opacity 180ms ease, transform 240ms cubic-bezier(0.16, 1, 0.3, 1), background 120ms ease;
+  transition-delay: calc(var(--i) * 25ms);
+}
+#stack:hover li.task.tile { opacity: 1; transform: none; }
+.tile-body { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.tile-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .check { margin-top: 0; }
+.intent { font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.intent-read { color: #7aa7ff; }
+.intent-reply { color: var(--accent); }
+.intent-review { color: #c49bff; }
+.intent-decide { color: #f0b35a; }
+
 ul#tasks {
   list-style: none;
   padding: 0;
@@ -308,7 +385,7 @@ li.task:hover .snooze { display: inline; }
   position: absolute;
   left: 14px;
   right: 14px;
-  z-index: 5;
+  z-index: 8;
   padding: 9px 11px;
   background: rgba(38, 38, 44, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.08);

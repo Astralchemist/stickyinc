@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
+mod clip_server;
 mod passive;
 mod reminders_sync;
 mod wizard;
@@ -83,6 +84,12 @@ fn write_atomically(path: &std::path::Path, contents: &str) -> std::io::Result<(
 #[tauri::command]
 fn write_calendar(ics: String) -> Result<(), String> {
     write_atomically(&calendar_path(), &ics).map_err(|e| e.to_string())
+}
+
+/// The browser extension's pairing code, for Settings to show and copy.
+#[tauri::command]
+fn clip_pairing_code() -> Result<String, String> {
+    clip_server::load_or_create_token(&clip_server::token_path()).map_err(|e| e.to_string())
 }
 
 /// Where the calendar file is, for Settings to show and copy.
@@ -399,41 +406,44 @@ fn add_task_quickadd(
     let path = db.lock().unwrap().0.clone();
     let mut conn = open_db(&path).map_err(|e| e.to_string())?;
 
-    let task_uuid = uuid::Uuid::new_v4().to_string();
     // IMMEDIATE takes the write lock up front: a deferred transaction that
     // reads first fails with SQLITE_BUSY (no retry) if the MCP server or
     // watcher commits before it writes.
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
-    tx.execute(
-        "INSERT INTO tasks (uuid, text, due_at, source, fingerprint) VALUES (?, ?, ?, 'quickadd', ?)",
-        rusqlite::params![
-            task_uuid,
-            task_text,
-            due_at,
-            fingerprint(&task_text),
-        ],
-    )
-    .map_err(|e| e.to_string())?;
-
-    let payload = serde_json::json!({
-        "text": task_text,
-        "due_at": due_at,
-        "source": "quickadd",
-    });
-    record_event(&tx, "create", &task_uuid, Some(&payload)).map_err(|e| e.to_string())?;
-
-    let task = tx
-        .query_row(
-            &format!("SELECT {TASK_COLS} FROM tasks WHERE uuid = ?"),
-            [&task_uuid],
-            task_from_row,
-        )
+    let task = insert_task(&tx, &task_text, due_at.as_deref(), "quickadd", (None, None, None))
         .map_err(|e| e.to_string())?;
-
     tx.commit().map_err(|e| e.to_string())?;
     Ok(task)
+}
+
+/// Insert a task and its create event inside `tx`: quick-add and the
+/// browser clipper. `from` is the provenance (client, ref, excerpt).
+fn insert_task(
+    tx: &rusqlite::Transaction,
+    text: &str,
+    due_at: Option<&str>,
+    source: &str,
+    from: (Option<&str>, Option<&str>, Option<&str>),
+) -> rusqlite::Result<Task> {
+    let task_uuid = uuid::Uuid::new_v4().to_string();
+    let (client, reference, excerpt) = from;
+    tx.execute(
+        "INSERT INTO tasks (uuid, text, due_at, source, fingerprint, source_client, source_ref, source_excerpt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        rusqlite::params![task_uuid, text, due_at, source, fingerprint(text), client, reference, excerpt],
+    )?;
+    let payload = serde_json::json!({
+        "text": text,
+        "due_at": due_at,
+        "source": source,
+        "source_client": client,
+        "source_ref": reference,
+        "source_excerpt": excerpt,
+    });
+    record_event(tx, "create", &task_uuid, Some(&payload))?;
+    tx.query_row(&format!("SELECT {TASK_COLS} FROM tasks WHERE uuid = ?"), [&task_uuid], task_from_row)
 }
 
 /// Split a trailing " due:YYYY-MM-DD" or " due:YYYY-MM-DDTHH:MM[:SS]" off
@@ -651,6 +661,7 @@ pub fn run() {
             close_quickadd,
             write_calendar,
             calendar_file_path,
+            clip_pairing_code,
             snooze_task,
             get_setup_complete,
             open_wizard,
@@ -694,6 +705,15 @@ pub fn run() {
                     let _ = open_wizard_window(&handle);
                 });
             }
+
+            // The browser clipper's endpoint (clip_server.rs).
+            let clip_db = path.clone();
+            std::thread::spawn(move || {
+                match clip_server::load_or_create_token(&clip_server::token_path()) {
+                    Ok(token) => clip_server::serve(&format!("127.0.0.1:{}", clip_server::PORT), clip_db, token),
+                    Err(e) => eprintln!("clipper pairing code: {e}"),
+                }
+            });
 
             let handle = app.handle().clone();
             let watch_path = path.clone();

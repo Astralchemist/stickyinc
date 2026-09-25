@@ -27,6 +27,7 @@ uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 sha2 = "0.10"
 tauri-plugin-notification = "2"
+tiny_http = "0.12"
 
 [profile.release]
 panic = "abort"

@@ -315,6 +315,10 @@ StickyInc intentionally doesn't ship its own Google OAuth flow. It's the single 
 
 When you want a real calendar event, ask Claude in the same turn. `schedule_event` stores the dated task in StickyInc; Claude creates the calendar entry via its own connector. One less thing for you to set up, one less place your tokens live.
 
+### Stack pages from your browser
+
+Right-click any page, link or selection → **Stack on StickyInc** → Read, Reply, Review or Decide. The page becomes a task about what you owe it (*Reply to “Q3 budget thread”*) with its address and your selection as where it came from, so due dates, reminders, search and "you clipped this to reply to last Tuesday" all work. Reply is due tomorrow at 9am; the rest have no date. Clips sit in a stack at the top of the pane: hover to fan it out, click a page to open it, tick it when it's done. Chrome and Edge for now; see [extension/README.md](./extension/README.md) to install it and pair it with the app.
+
 ### Apple Reminders (macOS)
 
 Turn it on from the pane's gear → Settings → Apple Reminders. Your open tasks then go to a **StickyInc** list in Reminders, which iCloud puts on your iPhone and Watch: updated when a task's text or due time changes, and ticked when you finish it. It's one way for now, so changes made in Reminders stay there. macOS asks once for permission to control Reminders; if you said no, allow StickyInc in System Settings → Privacy & Security → Automation.
