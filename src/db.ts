@@ -268,25 +268,23 @@ export function listArchived(hoursAgo = 24, limit = 100): Task[] {
 
 /**
  * Complete a task by numeric id (what the MCP surface accepts). Only emits
- * a `complete` event if the task was actually open before the call; no-op
- * on already-completed or nonexistent ids, matching prior behavior.
+ * a `complete` event if the task was actually open before the call.
+ * Returns null for a nonexistent id; `completed` says whether this call
+ * closed it (false: it was already done).
  */
-export function completeTask(id: number): Task | null {
-  return inTransaction((): Task | null => {
+export function completeTask(id: number): { task: Task; completed: boolean } | null {
+  return inTransaction(() => {
     const prior = completeTaskFindStmt.get(id) as
       | { uuid: string; completed_at: string | null }
       | undefined;
     if (!prior) return null;
-    if (prior.completed_at === null) {
+    const completed = prior.completed_at === null;
+    if (completed) {
       completeTaskUpdateStmt.run(id);
       recordEvent("complete", prior.uuid, null);
     }
-    return (getTaskStmt.get(id) as Task | undefined) ?? null;
+    return { task: getTaskStmt.get(id) as unknown as Task, completed };
   });
-}
-
-export function getTask(id: number): Task | null {
-  return (getTaskStmt.get(id) as Task | undefined) ?? null;
 }
 
 export { DB_PATH, DEVICE_ID };

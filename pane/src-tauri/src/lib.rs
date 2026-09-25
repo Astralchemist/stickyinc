@@ -40,6 +40,7 @@ fn db_path() -> PathBuf {
 
 fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
     let conn = Connection::open(path)?;
+    conn.busy_timeout(Duration::from_secs(5))?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     // Phase 1: tables + indexes that don't depend on columns the migrations
     // below add. Creating the uuid UNIQUE INDEX here would fail on pre-v0.6
@@ -81,6 +82,7 @@ fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
     // Phase 2: column-adding migrations.
     migrate_add_fingerprint(&conn)?;
     migrate_add_uuid(&conn)?;
+    migrate_fingerprint_sha256(&conn)?;
     // Phase 3: indexes on migrated columns.
     conn.execute_batch(
         r#"
@@ -129,6 +131,36 @@ fn migrate_add_fingerprint(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute("ALTER TABLE tasks ADD COLUMN fingerprint TEXT", [])?;
     }
     Ok(())
+}
+
+/// One-time migration: quick-add fingerprints used to be a Rust-only hash
+/// (DefaultHasher) that never matched the Node side's, so dedup across quick
+/// add and the MCP server / watcher didn't work. Recompute them with the
+/// shared algorithm; a meta flag makes this run once.
+fn migrate_fingerprint_sha256(conn: &Connection) -> rusqlite::Result<()> {
+    let done = conn
+        .prepare("SELECT 1 FROM meta WHERE key = 'fingerprint_sha256'")?
+        .exists([])?;
+    if done {
+        return Ok(());
+    }
+    let tx = conn.unchecked_transaction()?;
+    let rows: Vec<(i64, String)> = {
+        let mut stmt = tx.prepare("SELECT id, text FROM tasks WHERE source = 'quickadd'")?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>()?
+    };
+    for (id, text) in rows {
+        tx.execute(
+            "UPDATE tasks SET fingerprint = ? WHERE id = ?",
+            rusqlite::params![fingerprint(&text), id],
+        )?;
+    }
+    tx.execute(
+        "INSERT OR IGNORE INTO meta (key, value) VALUES ('fingerprint_sha256', '1')",
+        [],
+    )?;
+    tx.commit()
 }
 
 /// Fetch (or generate + persist) this machine's device_id. Used to stamp
@@ -316,7 +348,12 @@ fn add_task_quickadd(
     let mut conn = open_db(&path).map_err(|e| e.to_string())?;
 
     let task_uuid = uuid::Uuid::new_v4().to_string();
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    // IMMEDIATE takes the write lock up front: a deferred transaction that
+    // reads first fails with SQLITE_BUSY (no retry) if the MCP server or
+    // watcher commits before it writes.
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
     tx.execute(
         "INSERT INTO tasks (uuid, text, due_at, source, fingerprint) VALUES (?, ?, ?, 'quickadd', ?)",
         rusqlite::params![
@@ -396,16 +433,17 @@ fn parse_inline_due(text: &str) -> (String, Option<String>) {
     }
 }
 
+/// Same algorithm as `fingerprint` in src/db.ts, so quick-add tasks and ones
+/// the MCP server or watcher add dedupe against each other: sha256 of the
+/// lowercased, whitespace-collapsed text, first 16 hex chars.
 fn fingerprint(text: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut h = DefaultHasher::new();
-    text.to_lowercase()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .hash(&mut h);
-    format!("{:016x}", h.finish())
+    use sha2::{Digest, Sha256};
+    let normalized = text.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ");
+    Sha256::digest(normalized.as_bytes())
+        .iter()
+        .take(8)
+        .map(|b| format!("{:02x}", b))
+        .collect()
 }
 
 fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -436,7 +474,12 @@ fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
 fn complete_task(id: i64, db: tauri::State<'_, Mutex<DbPath>>) -> Result<Option<Task>, String> {
     let path = db.lock().unwrap().0.clone();
     let mut conn = open_db(&path).map_err(|e| e.to_string())?;
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    // IMMEDIATE takes the write lock up front: a deferred transaction that
+    // reads first fails with SQLITE_BUSY (no retry) if the MCP server or
+    // watcher commits before it writes.
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
 
     // Look up the task's uuid *and* whether it was open before we toggle;
     // only-still-open transitions get an event written.
@@ -628,6 +671,34 @@ mod tests {
         let (_, due) = parse_inline_due("call mum due:2026-04-25T15:30");
         let local = DateTime::parse_from_rfc3339(&due.unwrap()).unwrap().with_timezone(&Local);
         assert_eq!(local.format("%Y-%m-%dT%H:%M").to_string(), "2026-04-25T15:30");
+    }
+
+    #[test]
+    fn fingerprint_matches_node() {
+        // Reference values from src/db.ts's fingerprint() under Node.
+        assert_eq!(fingerprint("  Call  the\tDentist "), "ae50ef35f8b6be0f");
+        assert_eq!(fingerprint("call the dentist"), "ae50ef35f8b6be0f");
+        assert_eq!(fingerprint("Buy café crème"), "0088f097e69857d9");
+    }
+
+    #[test]
+    fn old_quickadd_fingerprints_are_recomputed_once() {
+        let path = std::env::temp_dir().join(format!("stickyinc-test-{}.db", uuid::Uuid::new_v4()));
+        let conn = open_db(&path).unwrap();
+        conn.execute("DELETE FROM meta WHERE key = 'fingerprint_sha256'", []).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (uuid, text, source, fingerprint) VALUES ('u1', 'Call the dentist', 'quickadd', 'old-hash')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let conn = open_db(&path).unwrap();
+        let fp: String = conn
+            .query_row("SELECT fingerprint FROM tasks WHERE uuid = 'u1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(fp, "ae50ef35f8b6be0f");
+        drop(conn);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
