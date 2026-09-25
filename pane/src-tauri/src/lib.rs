@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
+mod passive;
 mod wizard;
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -548,6 +549,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(Mutex::new(DbPath(path.clone())))
+        .manage(passive::PassiveWatcher::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -602,6 +604,10 @@ pub fn run() {
                 Code::KeyN,
             ));
 
+            if let Err(e) = app.state::<passive::PassiveWatcher>().sync(app.handle()) {
+                eprintln!("passive watcher: {e}");
+            }
+
             // First-run: open the setup wizard automatically.
             if !setup_is_complete() {
                 let handle = app.handle().clone();
@@ -639,8 +645,13 @@ pub fn run() {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                app.state::<passive::PassiveWatcher>().stop();
+            }
+        });
 }
 
 #[cfg(test)]

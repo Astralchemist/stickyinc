@@ -45,7 +45,7 @@ const state = {
   current: "welcome" as StepName,
   llm: null as LLMConfig | null,
   claudeDiff: null as ClaudeDiff | null,
-  claudeResolution: "replace" as "replace" | "skip" | "edit",
+  claudeResolution: "replace" as "replace" | "skip",
   detected: null as SubscriptionDetection | null,
 };
 
@@ -353,9 +353,6 @@ function bind(): void {
       const r = el.dataset.resolve;
       if (r === "skip") void registerClaude("skip");
       else if (r === "replace") void registerClaude("replace");
-      else if (r === "edit") {
-        goto("provider");
-      }
     });
   });
 

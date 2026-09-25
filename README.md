@@ -218,8 +218,9 @@ Both `claude-code` and `codex` providers run a subprocess per call (~500ms–1s 
 
 A daemon that tails your Claude Code transcripts and auto-surfaces commitments you mention in passing.
 
+Turn it on in the setup wizard's last step (re-open setup any time from the pane's **setup** link). The pane then runs it in the background with your configured LLM, stops it when you quit, and writes its output to `~/.stickyinc/watcher.log`. From a clone you can also run it by hand:
+
 ```bash
-export OPENROUTER_API_KEY=sk-or-...
 cd ~/stickyinc && pnpm watch
 ```
 

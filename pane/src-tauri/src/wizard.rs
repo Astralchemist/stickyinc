@@ -333,6 +333,16 @@ fn node_has_sqlite((major, minor): (u32, u32)) -> bool {
 /// registering the entry would silently fail at runtime otherwise, which is
 /// the v0.5.1 "subscription mode doesn't work" bug.
 fn mcp_default_command(app: &tauri::AppHandle) -> Result<(String, Vec<String>), String> {
+    let (node, script) = node_and_bundled_script(app, "mcp/stickyinc-mcp.mjs")?;
+    Ok((node, vec![script.to_string_lossy().to_string()]))
+}
+
+/// `node` (checked for node:sqlite support) plus the path of one of the
+/// bundled scripts shipped under `mcp/` in the app's resources.
+pub(crate) fn node_and_bundled_script(
+    app: &tauri::AppHandle,
+    resource: &str,
+) -> Result<(String, PathBuf), String> {
     let node = resolve_binary("node").ok_or_else(|| NODE_REQUIRED.to_string())?;
     match node_version(&node) {
         Some(v) if node_has_sqlite(v) => {}
@@ -341,17 +351,13 @@ fn mcp_default_command(app: &tauri::AppHandle) -> Result<(String, Vec<String>), 
         }
         None => return Err(format!("{} (couldn't run {} --version)", NODE_REQUIRED, node)),
     }
-
-    let mcp_path = app
+    let script = app
         .path()
-        .resolve("mcp/stickyinc-mcp.mjs", BaseDirectory::Resource)
+        .resolve(resource, BaseDirectory::Resource)
         .ok()
         .filter(|p| p.exists())
-        .ok_or_else(|| {
-            "StickyInc's bundled MCP server is missing from this install — reinstall the app."
-                .to_string()
-        })?;
-    Ok((node, vec![mcp_path.to_string_lossy().to_string()]))
+        .ok_or_else(|| format!("{} is missing from this install — reinstall StickyInc.", resource))?;
+    Ok((node, script))
 }
 
 fn mcp_proposed_entry(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -560,13 +566,26 @@ async fn validate_openai_compat(
 }
 
 #[tauri::command]
-pub fn wizard_set_watcher_enabled(enabled: bool) -> Result<(), String> {
+pub fn wizard_set_watcher_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     let mut cfg = read_json(&setup_sentinel_path());
     if !cfg.is_object() {
         cfg = serde_json::json!({});
     }
     cfg["watcher_enabled"] = serde_json::Value::Bool(enabled);
-    write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())
+    write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
+    app.state::<crate::passive::PassiveWatcher>().sync(&app)
+}
+
+/// Whether the user turned on passive extraction in setup.
+pub fn watcher_enabled() -> bool {
+    read_json(&setup_sentinel_path())
+        .get("watcher_enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+pub(crate) fn watcher_log_path() -> PathBuf {
+    stickyinc_dir().join("watcher.log")
 }
 
 #[tauri::command]
@@ -576,7 +595,7 @@ pub fn wizard_mark_complete(app: tauri::AppHandle) -> Result<(), String> {
         cfg = serde_json::json!({});
     }
     cfg["completed_at"] = serde_json::Value::String(chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string());
-    cfg["version"] = serde_json::json!("0.5.1");
+    cfg["version"] = serde_json::json!(app.package_info().version.to_string());
     write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
     // Tell the main pane window to flip out of hidden/bulge mode and show the strip.
     let _ = app.emit("setup-complete", ());

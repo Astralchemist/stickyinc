@@ -173,6 +173,12 @@ interface WatcherOptions {
   includeAssistant?: boolean;
   /** Verbose logging to stderr. */
   verbose?: boolean;
+  /**
+   * Exit once the parent process is gone. The pane runs the watcher as a
+   * child; this keeps a crashed or force-quit pane from leaving an orphan
+   * that keeps sending transcripts to the LLM.
+   */
+  exitWithParent?: boolean;
 }
 
 export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
@@ -286,7 +292,12 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
   process.on("SIGINT", onExit);
   process.on("SIGTERM", onExit);
 
+  const parentPid = process.ppid;
   while (!stopping) {
+    if (opts.exitWithParent && process.ppid !== parentPid) {
+      console.error("parent exited; watcher stopping.");
+      onExit();
+    }
     try {
       await tick();
     } catch (err) {
