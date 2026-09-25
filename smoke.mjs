@@ -3,10 +3,17 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 
-const child = spawn("pnpm", ["-s", "dev"], {
-  cwd: import.meta.dirname,
-  stdio: ["pipe", "pipe", "inherit"],
-});
+// Usage: node smoke.mjs [server.mjs]
+// With a path, runs that file with plain `node` — e.g. the bundled server
+// copied somewhere with no node_modules, the way the pane ships it. Writes go
+// to $HOME/.stickyinc/tasks.db, so point HOME at a scratch dir.
+const serverPath = process.argv[2];
+const child = serverPath
+  ? spawn(process.execPath, [serverPath], { stdio: ["pipe", "pipe", "inherit"] })
+  : spawn("pnpm", ["-s", "dev"], {
+      cwd: import.meta.dirname,
+      stdio: ["pipe", "pipe", "inherit"],
+    });
 
 const rl = createInterface({ input: child.stdout });
 const pending = new Map();

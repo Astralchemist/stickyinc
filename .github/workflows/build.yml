@@ -24,6 +24,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm build
+      - run: pnpm bundle
+      # Run the bundle the way the pane ships it: one file, no node_modules
+      # anywhere above it, scratch HOME so tasks.db is throwaway.
+      - name: Smoke-test bundled server standalone
+        run: |
+          mkdir -p "$RUNNER_TEMP/mcp" "$RUNNER_TEMP/home"
+          cp dist/bundle/stickyinc-mcp.mjs "$RUNNER_TEMP/mcp/"
+          HOME="$RUNNER_TEMP/home" node smoke.mjs "$RUNNER_TEMP/mcp/stickyinc-mcp.mjs"
 
   build-pane:
     name: Pane (${{ matrix.os }})
@@ -73,14 +81,11 @@ jobs:
         with:
           workspaces: pane/src-tauri -> target
 
-      # The pane's tauri build resolves bundled MCP code via the Tauri
-      # `bundle.resources` glob (../../dist/**/*) and runs the root
-      # `pnpm -C .. exec tsc` as its beforeBuildCommand, so the root
-      # node_modules must be in place before tauri-action runs.
-      # `--ignore-scripts` skips better-sqlite3's native rebuild — we only
-      # need the TypeScript types here, not the runtime native binary.
+      # The pane's beforeBuildCommand runs the root `pnpm run bundle`
+      # (esbuild) and ships its single-file output via `bundle.resources`,
+      # so the root node_modules must be in place before tauri-action runs.
       - name: Install MCP root deps
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Install pane frontend deps
         working-directory: pane

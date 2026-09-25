@@ -38,7 +38,19 @@ export class ClaudeCodeProvider implements LLMProvider {
 
   async chat(opts: ChatOptions): Promise<ChatResult> {
     const prompt = mergePrompt(opts);
-    const args = ["-p", "--output-format", "text"];
+    // A bare text-in/text-out call:
+    // - no session file, or the passive watcher (which tails
+    //   ~/.claude/projects) sees this call's prompt as a new user turn,
+    //   extracts from it, calls us again, and loops forever;
+    // - no tools and no MCP servers, since the prompt carries untrusted
+    //   transcript text and StickyInc's own MCP server is registered there.
+    const args = [
+      "-p",
+      "--output-format", "text",
+      "--no-session-persistence",
+      "--strict-mcp-config",
+      "--tools", "",
+    ];
     if (this.model) args.push("--model", this.model);
 
     return new Promise<ChatResult>((resolve, reject) => {
