@@ -4,28 +4,39 @@
     <meta charset="UTF-8" />
     <title>StickyInc — Quick Add</title>
     <style>
+      /* A small sticky note, like the pane (src/style.css): paper and ink by
+         day, charcoal paper and yellow ink by night. */
+      :root {
+        --paper-top: #fff5b3; --paper-bottom: #fbe98f; --ink: #2d2a22; --muted: #857a55;
+        --accent: #d4452a; --line: rgba(90, 70, 0, 0.2); --shadow: rgba(60, 45, 0, 0.3); --ok: #2e7d4f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper-top: #2f2d28; --paper-bottom: #262521; --ink: #f2e4a0; --muted: #a79d78;
+          --accent: #ff7a5c; --line: rgba(242, 228, 160, 0.18); --shadow: rgba(0, 0, 0, 0.55); --ok: #7fd49a;
+        }
+      }
       html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; background: transparent; overflow: hidden; }
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
-        color: #e8e8ed;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
       }
       #box {
         position: fixed;
         inset: 0;
-        background: rgba(18, 18, 22, 0.94);
-        backdrop-filter: blur(24px) saturate(140%);
-        -webkit-backdrop-filter: blur(24px) saturate(140%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
+        background: linear-gradient(180deg, var(--paper-top), var(--paper-bottom));
+        border: 1px solid var(--line);
+        border-radius: 4px;
         display: flex;
         align-items: center;
         padding: 0 16px;
         gap: 10px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 20px 50px var(--shadow);
       }
       #box::before {
         content: "＋";
-        color: #ff4d4d;
+        color: var(--accent);
         font-size: 18px;
         font-weight: 600;
       }
@@ -39,22 +50,22 @@
         font-weight: 400;
         padding: 18px 0;
       }
-      input::placeholder { color: #6b6b75; }
+      input::placeholder { color: var(--muted); }
       #hint {
         font-size: 10px;
-        color: #6b6b75;
+        color: var(--muted);
         letter-spacing: 0.4px;
         text-transform: uppercase;
       }
       #hint kbd {
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--line);
         padding: 1px 5px;
         border-radius: 3px;
         font-family: inherit;
         font-size: 9px;
       }
       .flash {
-        color: #4ade80;
+        color: var(--ok);
       }
     </style>
   </head>

@@ -78,6 +78,8 @@ let seededSetupBulge = false;
 let provenanceTimer: number | null = null;
 /** Whether the OS lets us notify; asked once, when the first reminder is due. */
 let notificationsAllowed: boolean | null = null;
+/** What the stack was last drawn from; see renderStack. */
+let stackKey = "";
 /** What the calendar file was last written from; unchanged tasks, no write. */
 let calendarKey = "";
 /** Index into TOUR while the tour is showing. */
@@ -288,6 +290,15 @@ function stackTile(task: Task, i: number): HTMLElement {
  * out into tiles on hover, over the tasks below so nothing shifts.
  */
 function renderStack(clips: Task[]): void {
+  // The pane refreshes every 3 s; redrawing an unchanged stack would replay
+  // its fan-out under a hovering pointer. The day and overdue state are in
+  // the key because they change how due times read.
+  const key = JSON.stringify([
+    new Date().toDateString(),
+    clips.map((t) => [t.id, t.text, t.due_at, t.source_ref, t.due_at !== null && isOverdue(t.due_at)]),
+  ]);
+  if (key === stackKey) return;
+  stackKey = key;
   stackEl.hidden = clips.length === 0;
   stackEl.replaceChildren();
   if (clips.length === 0) return;

@@ -1,13 +1,54 @@
+/* A sticky note by day: paper yellow, warm ink, notepad rules. By night
+   (macOS in dark mode): charcoal paper, yellow ink. Every color below comes
+   from these tokens, so the two stay in step. */
 :root {
-  --bg: rgba(18, 18, 22, 0.92);
-  --fg: #e8e8ed;
-  --muted: #8a8a93;
-  --accent: #ff4d4d;
-  --strike: #52525b;
-  --radius: 10px;
+  --paper-top: #fff5b3;
+  --paper-bottom: #fbe98f;
+  --ink: #2d2a22;
+  --muted: #857a55;
+  --accent: #d4452a;
+  --strike: #b3a676;
+  --rule: rgba(90, 70, 0, 0.28);
+  --wash: rgba(90, 70, 0, 0.07);
+  --wash-strong: rgba(90, 70, 0, 0.13);
+  --check: #8b7e4e;
+  --card: #fffbe2;
+  --card-line: rgba(90, 70, 0, 0.18);
+  --shadow: rgba(60, 45, 0, 0.28);
+  --tape: rgba(255, 255, 255, 0.55);
+  --tour: rgba(255, 255, 255, 0.4);
+  --strip: rgba(245, 214, 90, 0.55);
+  --read: #2f6fd6;
+  --review: #8a4fd0;
+  --decide: #b97400;
+  --serif: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
+  --radius: 3px;
   --strip-w: 8px;
   --pane-w: 320px;
   --pane-h: 100vh;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper-top: #2f2d28;
+    --paper-bottom: #262521;
+    --ink: #f2e4a0;
+    --muted: #a79d78;
+    --accent: #ff7a5c;
+    --strike: #6d6752;
+    --rule: rgba(242, 228, 160, 0.2);
+    --wash: rgba(242, 228, 160, 0.07);
+    --wash-strong: rgba(242, 228, 160, 0.13);
+    --check: #c9ba84;
+    --card: #37352f;
+    --card-line: rgba(242, 228, 160, 0.16);
+    --shadow: rgba(0, 0, 0, 0.55);
+    --tape: rgba(242, 228, 160, 0.16);
+    --tour: rgba(242, 228, 160, 0.06);
+    --strip: rgba(242, 228, 160, 0.3);
+    --read: #86b1ff;
+    --review: #c9a3ff;
+    --decide: #f0b35a;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -21,12 +62,13 @@ html, body {
   width: 100vw;
   height: 100vh;
   background: transparent;
-  color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Edge strip — visible while body.strip or body.expanded; suppressed otherwise. */
@@ -36,7 +78,7 @@ html, body {
   right: 0;
   width: var(--strip-w);
   height: 100vh;
-  background: linear-gradient(to left, rgba(80, 80, 90, 0.35), rgba(80, 80, 90, 0));
+  background: linear-gradient(to left, var(--strip), transparent);
   transition: background 160ms ease, opacity 180ms ease;
   cursor: pointer;
   opacity: 0;
@@ -48,7 +90,7 @@ body.expanded #strip {
   pointer-events: auto;
 }
 #strip:hover {
-  background: linear-gradient(to left, rgba(120, 120, 140, 0.6), rgba(120, 120, 140, 0.05));
+  background: linear-gradient(to left, var(--strip), var(--strip) 40%, transparent);
 }
 
 /* Red dot — when due items exist */
@@ -68,7 +110,7 @@ body.expanded #strip {
 body.strip.has-due #strip-dot,
 body.expanded.has-due #strip-dot { opacity: 1; }
 
-/* Bulge — a small pill that extends from the edge for 3.5s when something
+/* Bulge — a small note that slides out from the edge for 3.5s when something
    notification-worthy happens (setup needed, Claude added a task, due
    crossed). Invisible except in body.bulge. */
 #bulge {
@@ -78,13 +120,13 @@ body.expanded.has-due #strip-dot { opacity: 1; }
   transform: translate(100%, -50%);
   max-width: 220px;
   padding: 9px 14px 9px 12px;
-  background: rgba(24, 24, 28, 0.96);
-  color: var(--fg);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, var(--paper-top), var(--paper-bottom));
+  color: var(--ink);
+  border: 1px solid var(--card-line);
   border-right: none;
-  border-top-left-radius: 10px;
-  border-bottom-left-radius: 10px;
-  box-shadow: -10px 0 24px rgba(0, 0, 0, 0.35);
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+  box-shadow: -8px 6px 20px var(--shadow);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -111,8 +153,8 @@ body.bulge #bulge.clickable { pointer-events: auto; }
   min-width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--fg);
+  background: var(--wash-strong);
+  color: var(--ink);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0;
@@ -123,27 +165,37 @@ body.bulge #bulge.clickable { pointer-events: auto; }
   text-overflow: ellipsis;
 }
 
-/* Pane — hidden by default, revealed when expanded. As tall as its tasks,
-   up to the full screen, where the task list starts to scroll. The window
-   stays full height so the whole edge still opens it. */
+/* Pane — the note itself, hidden until expanded. As tall as its tasks, up to
+   the full screen, where the task list starts to scroll. The window stays
+   full height so the whole edge still opens it. */
 #pane {
   position: fixed;
   top: 0;
   right: 0;
   width: var(--pane-w);
   max-height: var(--pane-h);
-  background: var(--bg);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
   border-top-left-radius: var(--radius);
   border-bottom-left-radius: var(--radius);
+  box-shadow: -10px 14px 34px var(--shadow), inset 0 1px 0 var(--tape);
   transform: translateX(100%);
   transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  padding: 16px 14px;
+  padding: 22px 16px 14px;
+}
+/* A strip of tape holding the note up. */
+#pane::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 96px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
 }
 body.expanded #pane { transform: translateX(0); }
 body.expanded #strip { background: transparent; }
@@ -154,16 +206,15 @@ header {
   justify-content: space-between;
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px dashed var(--rule);
 }
 header h1 {
-  font-size: 13px;
-  font-weight: 600;
+  font: 700 18px/1 var(--serif);
   margin: 0;
-  letter-spacing: 0.2px;
-  color: var(--fg);
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
-header h1 span { color: var(--muted); font-weight: 400; }
+header h1 span { color: var(--muted); font-style: italic; font-weight: 400; }
 header #count {
   font-size: 11px;
   color: var(--muted);
@@ -174,9 +225,9 @@ header #count {
 .tour {
   margin: 0 0 10px;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius);
+  background: var(--tour);
 }
 .tour-head {
   display: flex;
@@ -211,9 +262,9 @@ header #count {
   font-size: 11px;
   padding: 3px 10px;
   border: none;
-  border-radius: 4px;
-  background: var(--fg);
-  color: var(--bg);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper-top);
   cursor: pointer;
 }
 
@@ -233,21 +284,21 @@ header #count {
   left: calc(var(--i) * 7px);
   z-index: calc(10 - var(--i)); /* the first clip on top of the pile */
   transform: rotate(calc((var(--i) - 1.5) * 7deg));
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--card-line);
+  box-shadow: 0 1px 3px var(--shadow);
   transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 #stack:hover .stack-pile .favicon { transform: translateX(calc(var(--i) * 3px)) rotate(0deg); }
 .stack-label { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
-/* A light tile behind every favicon: most are drawn for light pages, and a
-   dark one (GitHub's) would vanish on the pane. */
+/* A white tile behind every favicon: most are drawn for light pages, and a
+   dark one (GitHub's) would vanish on the night note. */
 .favicon {
   width: 18px;
   height: 18px;
   flex: none;
   padding: 1px;
   border-radius: 4px;
-  background: #ececf0;
+  background: #fff;
   object-fit: contain;
 }
 .favicon.letter {
@@ -266,10 +317,10 @@ header #count {
   left: 0;
   right: 0;
   z-index: 6;
-  background: rgba(30, 30, 36, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px var(--shadow);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-6px);
@@ -289,10 +340,10 @@ li.task.tile {
 .tile-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tile .check { margin-top: 0; }
 .intent { font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-.intent-read { color: #7aa7ff; }
+.intent-read { color: var(--read); }
 .intent-reply { color: var(--accent); }
-.intent-review { color: #c49bff; }
-.intent-decide { color: #f0b35a; }
+.intent-review { color: var(--review); }
+.intent-decide { color: var(--decide); }
 
 ul#tasks {
   list-style: none;
@@ -303,44 +354,46 @@ ul#tasks {
   min-height: 0;
 }
 ul#tasks::-webkit-scrollbar { width: 4px; }
-ul#tasks::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+ul#tasks::-webkit-scrollbar-thumb { background: var(--wash-strong); border-radius: 2px; }
 
 li.task {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 8px 4px;
-  border-radius: 6px;
+  padding: 9px 4px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: background 120ms ease;
 }
-li.task:hover { background: rgba(255, 255, 255, 0.04); }
+li.task:hover { background: var(--wash); }
 
+/* Round, like a box drawn on a note. */
 .check {
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
-  margin-top: 2px;
-  border: 1.5px solid var(--muted);
-  border-radius: 4px;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  margin-top: 1px;
+  border: 1.5px solid var(--check);
+  border-radius: 50%;
   display: grid;
   place-items: center;
   transition: all 140ms ease;
 }
-li.task:hover .check { border-color: var(--fg); }
+li.task:hover .check { border-color: var(--ink); }
 li.task.done .check {
-  background: var(--muted);
-  border-color: var(--muted);
+  background: var(--check);
+  border-color: var(--check);
 }
 li.task.done .check::after {
   content: "✓";
   font-size: 10px;
-  color: var(--bg);
+  color: var(--paper-top);
   font-weight: 700;
 }
 
 .text {
   flex: 1;
+  font-size: 13.5px;
   line-height: 1.4;
   word-wrap: break-word;
 }
@@ -351,12 +404,12 @@ li.task.done .text {
 
 .due {
   display: block;
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--muted);
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
 }
-.due.overdue { color: var(--accent); }
+.due.overdue { color: var(--accent); font-weight: 600; }
 
 /* Snooze, on tasks due within a day or overdue: shown while hovering the
    row. Its buttons stop the click reaching the row, which would tick it. */
@@ -364,19 +417,20 @@ li.task.done .text {
   display: none;
   margin-left: 8px;
   color: var(--muted);
+  font-weight: 400;
 }
 li.task:hover .snooze { display: inline; }
 .snooze button {
   font: inherit;
   margin-left: 4px;
   padding: 0 5px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
   background: transparent;
-  color: var(--fg);
+  color: var(--ink);
   cursor: pointer;
 }
-.snooze button:hover { background: rgba(255, 255, 255, 0.08); }
+.snooze button:hover { background: var(--wash-strong); }
 
 /* Provenance card: where a task came from, after resting on it. It floats
    over the rows below (or above) and ignores the pointer, so nothing moves
@@ -387,18 +441,19 @@ li.task:hover .snooze { display: inline; }
   right: 14px;
   z-index: 8;
   padding: 9px 11px;
-  background: rgba(38, 38, 44, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 24px var(--shadow);
   pointer-events: none;
   font-size: 12px;
   line-height: 1.45;
 }
+/* The user's own words, set like a quote. */
 #provenance .excerpt {
   margin: 0 0 5px;
-  color: var(--fg);
-  font-style: italic;
+  font: italic 13px/1.4 var(--serif);
   word-wrap: break-word;
 }
 #provenance .meta {
@@ -410,7 +465,7 @@ li.task:hover .snooze { display: inline; }
 #recent-section {
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px dashed var(--rule);
 }
 #recent-section h2 {
   font-size: 10px;
@@ -428,7 +483,7 @@ li.task:hover .snooze { display: inline; }
   overflow-y: auto;
 }
 #recent li.task {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: default;
 }
 #recent li.task .text {
@@ -436,20 +491,20 @@ li.task:hover .snooze { display: inline; }
   text-decoration: line-through;
 }
 #recent li.task .check {
-  background: var(--muted);
-  border-color: var(--muted);
+  background: var(--check);
+  border-color: var(--check);
 }
 #recent li.task .check::after {
   content: "✓";
   font-size: 10px;
-  color: var(--bg);
+  color: var(--paper-top);
   font-weight: 700;
 }
 
 /* Archive drawer */
 #drawer {
   margin-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px dashed var(--rule);
   padding-top: 8px;
 }
 #drawer summary {
@@ -466,10 +521,10 @@ li.task:hover .snooze { display: inline; }
   user-select: none;
 }
 #drawer summary::-webkit-details-marker { display: none; }
-#drawer summary:hover { color: var(--fg); }
-#drawer[open] summary { color: var(--fg); }
+#drawer summary:hover { color: var(--ink); }
+#drawer[open] summary { color: var(--ink); }
 .drawer-count {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--wash-strong);
   padding: 1px 6px;
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
@@ -482,7 +537,7 @@ li.task:hover .snooze { display: inline; }
   overflow-y: auto;
 }
 #archive li.task {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: default;
   font-size: 12px;
 }
@@ -494,7 +549,7 @@ li.task:hover .snooze { display: inline; }
 footer {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px dashed var(--rule);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -513,13 +568,13 @@ footer {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: color 140ms ease, background 140ms ease;
 }
 .footer-link:hover {
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  background: var(--wash-strong);
 }
 .footer-icon {
   display: grid;
@@ -529,19 +584,22 @@ footer {
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius);
   color: var(--muted);
   cursor: pointer;
   transition: color 140ms ease, background 140ms ease;
 }
 .footer-icon:hover {
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  background: var(--wash-strong);
 }
 
 .empty {
   color: var(--muted);
-  font-style: italic;
+  font: italic 13px/1.4 var(--serif);
   padding: 12px 4px;
-  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pane, #bulge, .stack-tiles, li.task.tile, .stack-pile .favicon { transition: none; }
 }
