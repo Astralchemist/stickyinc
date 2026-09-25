@@ -5,26 +5,16 @@
   ╚════██║   ██║   ██║██║     ██╔═██╗   ╚██╔╝      ██║██║╚██╗██║██║
   ███████║   ██║   ██║╚██████╗██║  ██╗   ██║       ██║██║ ╚████║╚██████╗
   ╚══════╝   ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝       ╚═╝╚═╝  ╚═══╝ ╚═════╝
-
-           ┌─────────────────────────────────────────────────────────┐
-           │  v0.5.2  ·  the subscription-mode release               │
-           │                                                         │
-           │   ▸ zero-key auto-detect for claude / codex / gemini    │
-           │   ▸ Ollama + LM Studio localhost fallback, free         │
-           │   ▸ sidebar hidden until setup is done — subtle bulges  │
-           │     from the edge on new task / due / setup events      │
-           └─────────────────────────────────────────────────────────┘
-
-
-      ┌──────────────────────────┐        ┌──────────────────────────┐
-      │ user ▸ call the dentist  │  MCP   │ ☐ call the dentist       │
-      │        friday afternoon  │ ─────▶ │ ☐ email Sarah            │
-      │ claude ▸ noted, adding.  │  tool  │ ☑ ship v0.5              │
-      └──────────────────────────┘        │ ☐ make it stick          │
-                 │                        └──────────────────────────┘
-             the chat                               the pane
-         evaporates at close           lives in ~/.stickyinc forever
 ```
+
+<p align="center">
+  <strong>Tell Claude what you need to do. It sticks to the edge of your screen.</strong><br />
+  StickyInc is an MCP server plus a thin always-on-top strip. Mention a commitment in any chat, like <em>"call the dentist Friday"</em>, and it becomes a checkbox you can see, kept in a local SQLite file you own.
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" width="720" alt="A Claude chat: the user types 'I need to call the dentist Friday afternoon', and the task appears on the StickyInc strip at the right edge of the screen." />
+</p>
 
 <p align="center">
   <strong>v0.5.2</strong> · MIT · MCP-first · no backend, ever<br />
@@ -32,12 +22,48 @@
 </p>
 
 <p align="center">
-  <a href="https://astralchemist.github.io/stickyinc/">Landing page</a> ·
+  <a href="#setup">Setup</a> ·
   <a href="https://github.com/Astralchemist/stickyinc/releases/latest">Download</a> ·
+  <a href="https://astralchemist.github.io/stickyinc/">Landing page</a> ·
   <a href="#the-idea">The idea</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#quickstart">Quickstart</a>
+  <a href="#architecture">Architecture</a>
 </p>
+
+---
+
+## Setup
+
+**1 · Add the MCP server to your client.** You need [Node.js 22.13+](https://nodejs.org); `npx` fetches StickyInc on first run.
+
+**Claude Code**
+
+```bash
+claude mcp add -s user stickyinc -- npx -y stickyinc
+```
+
+**Claude Desktop**: Settings → Developer → Edit Config, then add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "stickyinc": { "command": "npx", "args": ["-y", "stickyinc"] }
+  }
+}
+```
+
+**Cursor**: add to `~/.cursor/mcp.json` (every project) or `.cursor/mcp.json` (one project):
+
+```json
+{
+  "mcpServers": {
+    "stickyinc": { "command": "npx", "args": ["-y", "stickyinc"] }
+  }
+}
+```
+
+Restart the client and tell it something you need to do: *"remind me to call the dentist Friday afternoon."* If Claude Desktop or Cursor can't find `npx`, put its full path (from `which npx`) in `command`.
+
+**2 · Get the strip.** The server saves tasks to `~/.stickyinc/tasks.db`; the pane is the strip that shows them. [Install the pane](#install-the-pane) for macOS, Windows, or Linux. Its setup wizard can also do step 1 for Claude Code.
 
 ---
 
@@ -94,7 +120,7 @@ Claude never talks to the pane directly. They share state through SQLite — one
 
 ---
 
-## Install
+## Install the pane
 
 Pre-built binaries ship from every tagged release. Signed and notarized builds arrive in v0.6 (see [SIGNING.md](./SIGNING.md) for the plan).
 
