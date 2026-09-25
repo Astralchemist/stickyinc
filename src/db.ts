@@ -1,17 +1,27 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 // Built-in driver (Node 22.13+), not better-sqlite3: the pane ships this
 // server as a single bundled file run by the user's own `node`, and a native
 // addon can't be bundled or matched to an unknown Node ABI.
 import { DatabaseSync } from "node:sqlite";
 import type { Task } from "./types.js";
 
-const DATA_DIR = join(homedir(), ".stickyinc");
-const DB_PATH = join(DATA_DIR, "tasks.db");
+/**
+ * ~/.stickyinc/tasks.db unless STICKYINC_DB says otherwise. The pane always
+ * reads the default, so an override is for a list the pane won't show. A
+ * leading ~ is expanded since MCP client configs don't go through a shell.
+ */
+function dbPath(): string {
+  const override = process.env.STICKYINC_DB;
+  if (!override) return join(homedir(), ".stickyinc", "tasks.db");
+  return resolve(override.replace(/^~(?=$|[\\/])/, homedir()));
+}
 
-mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = dbPath();
+
+mkdirSync(dirname(DB_PATH), { recursive: true });
 
 export const db = new DatabaseSync(DB_PATH);
 db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;`);

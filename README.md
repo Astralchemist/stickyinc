@@ -138,6 +138,14 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
 
+### Keeping tasks somewhere else
+
+The MCP server writes to `~/.stickyinc/tasks.db` unless `STICKYINC_DB` points elsewhere. The pane only reads the default, so use this for a list you don't want on the strip:
+
+```bash
+claude mcp add -s user stickyinc -e STICKYINC_DB=~/work-tasks.db -- npx -y stickyinc
+```
+
 ---
 
 ## LLM providers
@@ -218,10 +226,10 @@ Both `claude-code` and `codex` providers run a subprocess per call (~500ms–1s 
 
 A daemon that tails your Claude Code transcripts and auto-surfaces commitments you mention in passing.
 
-Turn it on in the setup wizard's last step (re-open setup any time from the pane's **setup** link). The pane then runs it in the background with your configured LLM, stops it when you quit, and writes its output to `~/.stickyinc/watcher.log`. From a clone you can also run it by hand:
+Turn it on in the setup wizard's last step (re-open setup any time from the pane's **setup** link). The pane then runs it in the background with your configured LLM, stops it when you quit, and writes its output to `~/.stickyinc/watcher.log`. You can also run it by hand:
 
 ```bash
-cd ~/stickyinc && pnpm watch
+npx -y -p stickyinc stickyinc-watch   # or, from a clone: pnpm watch
 ```
 
 - Watches `~/.claude/projects/**/*.jsonl` (Claude Code session files).
