@@ -11,7 +11,7 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { addTaskUnique } from "./db.js";
-import { timeContext, toStoredDue } from "./dates.js";
+import { resolveDue, type Due } from "./dates.js";
 import { resolveLLMProvider, type LLMProvider } from "./providers/index.js";
 
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
@@ -92,14 +92,14 @@ function extractText(message: TranscriptLine["message"]): string {
 
 interface Commitment {
   text: string;
-  due_at: string | null;
+  due: Due | null;
 }
 
 const EXTRACTION_SYSTEM = `You extract actionable commitments from a message.
 
 A "commitment" is something the speaker said they will or should do. Examples:
-  - "I need to call the dentist" → { "text": "Call the dentist", "due_at": null }
-  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due_at": "<tomorrow's date>T09:00" }
+  - "I need to call the dentist" → { "text": "Call the dentist", "due": null }
+  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due": "tomorrow" }
 
 Ignore:
   - Hypotheticals ("I could do X")
@@ -107,15 +107,16 @@ Ignore:
   - Generic questions or musings
 
 Output ONLY a JSON object, no prose:
-{ "commitments": [{ "text": "...", "due_at": "<local YYYY-MM-DDTHH:MM or null>" }] }
+{ "commitments": [{ "text": "...", "due": "<the words that say when, or null>" }] }
 
-Empty array if nothing qualifies. due_at is the user's local time, with no offset or Z; take weekdays and "tomorrow" from the dates listed below. If a date has no time, use 09:00.`;
+Empty array if nothing qualifies. "due" copies the speaker's date/time words ("Friday 3pm", "next week"); don't work out a date. If an hour has no am/pm, add the one the speaker means.`;
 
 function stripFences(s: string): string {
   return s.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 }
 
-function parseCommitments(raw: string): Commitment[] {
+/** `said` is when the message was written; relative dates are read against it. */
+function parseCommitments(raw: string, said: Date): Commitment[] {
   let cleaned = stripFences(raw);
   let obj: unknown;
   try {
@@ -136,32 +137,37 @@ function parseCommitments(raw: string): Commitment[] {
   for (const c of arr) {
     if (!c || typeof c !== "object") continue;
     const text = (c as { text?: unknown }).text;
-    const due = (c as { due_at?: unknown }).due_at;
+    const due = (c as { due?: unknown }).due;
     if (typeof text === "string" && text.trim().length > 0) {
       out.push({
         text: text.trim(),
-        due_at: typeof due === "string" ? toStoredDue(due) : null,
+        due: typeof due === "string" && due.trim() ? resolveDue(due, said) : null,
       });
     }
   }
   return out;
 }
 
-async function extract(provider: LLMProvider, speaker: string, text: string): Promise<Commitment[]> {
+async function extract(
+  provider: LLMProvider,
+  speaker: string,
+  text: string,
+  said: Date
+): Promise<Commitment[]> {
   if (text.trim().length < 4) return [];
   const res = await provider.chat({
     system: EXTRACTION_SYSTEM,
     messages: [
       {
         role: "user",
-        content: `${timeContext()}\nSpeaker: ${speaker}\n\nMessage:\n${text.slice(0, 4000)}`,
+        content: `Speaker: ${speaker}\n\nMessage:\n${text.slice(0, 4000)}`,
       },
     ],
     response_format: "json",
     max_tokens: 400,
     temperature: 0,
   });
-  return parseCommitments(res.content);
+  return parseCommitments(res.content, said);
 }
 
 interface WatcherOptions {
@@ -262,12 +268,18 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
         const text = extractText(obj.message);
         if (!text) continue;
 
+        // The transcript's own timestamp, not now: a backlog read after a
+        // restart must take "tomorrow" from when it was said.
+        const stamped = obj.timestamp ? new Date(obj.timestamp) : null;
+        const said = stamped && !Number.isNaN(stamped.getTime()) ? stamped : new Date();
+
         try {
-          const commitments = await extract(provider, role ?? "user", text);
+          const commitments = await extract(provider, role ?? "user", text, said);
           for (const c of commitments) {
-            const { task, inserted } = addTaskUnique(c.text, c.due_at, "passive-extract");
+            const { task, inserted } = addTaskUnique(c.text, c.due, "passive-extract");
             if (inserted && verbose) {
-              console.error(`  + #${task.id} ${c.text}${c.due_at ? ` (due ${c.due_at})` : ""}`);
+              const due = c.due ? ` (due ${c.due.at ?? "?"} from "${c.due.phrase}")` : "";
+              console.error(`  + #${task.id} ${c.text}${due}`);
             } else if (!inserted && verbose) {
               console.error(`  ~ dup #${task.id} ${c.text}`);
             }

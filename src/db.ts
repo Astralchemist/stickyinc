@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 // server as a single bundled file run by the user's own `node`, and a native
 // addon can't be bundled or matched to an unknown Node ABI.
 import { DatabaseSync } from "node:sqlite";
+import type { Due } from "./dates.js";
 import type { Task } from "./types.js";
 
 /**
@@ -54,6 +55,7 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     completed_at TEXT,
     due_at TEXT,
+    due_phrase TEXT,
     source TEXT NOT NULL DEFAULT 'claude',
     fingerprint TEXT
   );
@@ -88,6 +90,10 @@ db.exec(`
   }
   if (!cols.some((c) => c.name === "uuid")) {
     db.exec(`ALTER TABLE tasks ADD COLUMN uuid TEXT`);
+  }
+  // The words a due date was read from. Node-only: the pane never sets it.
+  if (!cols.some((c) => c.name === "due_phrase")) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN due_phrase TEXT`);
   }
   // Backfill uuid for any rows created before v0.6.
   const pending = db.prepare(`SELECT id FROM tasks WHERE uuid IS NULL`).all() as {
@@ -168,7 +174,8 @@ function recordEvent(
 }
 
 const insertTaskStmt = db.prepare(
-  `INSERT INTO tasks (uuid, text, due_at, source, fingerprint) VALUES (?, ?, ?, ?, ?) RETURNING *`
+  `INSERT INTO tasks (uuid, text, due_at, due_phrase, source, fingerprint)
+   VALUES (?, ?, ?, ?, ?, ?) RETURNING *`
 );
 
 const findOpenByFingerprintStmt = db.prepare(
@@ -221,18 +228,29 @@ export function fingerprint(text: string): string {
     .slice(0, 16);
 }
 
-export function addTask(
-  text: string,
-  dueAt: string | null = null,
-  source = "claude"
-): Task {
+/**
+ * Insert a task and its create event; call inside inTransaction. The event
+ * also records when a due phrase was read, so the parse can be replayed.
+ */
+function insertTask(text: string, due: Due | null, source: string): Task {
   const taskUuid = randomUUID();
-  const fp = fingerprint(text);
-  return inTransaction((): Task => {
-    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as unknown as Task;
-    recordEvent("create", taskUuid, { text, due_at: dueAt, source });
-    return task;
+  const dueAt = due?.at ?? null;
+  const duePhrase = due?.phrase ?? null;
+  const task = insertTaskStmt.get(
+    taskUuid, text, dueAt, duePhrase, source, fingerprint(text)
+  ) as unknown as Task;
+  recordEvent("create", taskUuid, {
+    text,
+    due_at: dueAt,
+    due_phrase: duePhrase,
+    due_ref: due?.ref ?? null,
+    source,
   });
+  return task;
+}
+
+export function addTask(text: string, due: Due | null = null, source = "claude"): Task {
+  return inTransaction(() => insertTask(text, due, source));
 }
 
 /**
@@ -242,17 +260,13 @@ export function addTask(
  */
 export function addTaskUnique(
   text: string,
-  dueAt: string | null = null,
+  due: Due | null = null,
   source = "claude"
 ): { task: Task; inserted: boolean } {
-  const fp = fingerprint(text);
   return inTransaction((): { task: Task; inserted: boolean } => {
-    const existing = findOpenByFingerprintStmt.get(fp) as Task | undefined;
+    const existing = findOpenByFingerprintStmt.get(fingerprint(text)) as Task | undefined;
     if (existing) return { task: existing, inserted: false };
-    const taskUuid = randomUUID();
-    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as unknown as Task;
-    recordEvent("create", taskUuid, { text, due_at: dueAt, source });
-    return { task, inserted: true };
+    return { task: insertTask(text, due, source), inserted: true };
   });
 }
 

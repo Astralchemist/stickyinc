@@ -23,6 +23,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
       - run: pnpm bundle
       # Run the bundle the way the pane ships it: one file, no node_modules

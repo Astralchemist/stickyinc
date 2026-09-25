@@ -17,7 +17,8 @@
     "start": "node dist/index.js",
     "watch": "tsx src/watch-cli.ts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "tsc --noEmit && node scripts/bundle.mjs && node smoke.mjs dist/bundle/stickyinc-mcp.mjs"
+    "test": "tsx --test src/*.test.ts",
+    "prepublishOnly": "tsc --noEmit && tsx --test src/*.test.ts && node scripts/bundle.mjs && node smoke.mjs dist/bundle/stickyinc-mcp.mjs"
   },
   "keywords": [
     "mcp",
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/node": "^25.6.0",
+    "chrono-node": "^2.10.1",
     "esbuild": "^0.27.7",
     "tsx": "^4.19.1",
     "typescript": "^6.0.3",

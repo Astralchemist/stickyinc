@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
-import { toStoredDue } from "../dates.js";
+import { describeDue, resolveDue } from "../dates.js";
 
 export const scheduleEventSchema = {
   title: z.string().min(1).describe("Event title"),
   start: z
     .string()
     .describe(
-      "Start, ISO 8601. With Z or an offset it's exact ('2026-04-24T15:00:00Z'); without one it's the user's local time."
+      "When it starts, in the user's own words ('Friday 3pm', 'tomorrow at 10am'); StickyInc works " +
+        "out the date in their time zone. Or ISO 8601: with Z or an offset it's exact, without one local."
     ),
   end: z.string().optional().describe("Optional end, ISO 8601. Echoed back, not stored."),
   notes: z.string().optional().describe("Optional notes/description"),
@@ -25,13 +26,15 @@ export async function handleScheduleEvent(args: {
   end?: string;
   notes?: string;
 }) {
-  const start = toStoredDue(args.start);
-  if (!start) {
+  const start = resolveDue(args.start);
+  if (!start.at) {
     return {
       content: [
         {
           type: "text" as const,
-          text: `start "${args.start}" isn't a date/time. Use ISO 8601, e.g. 2026-04-24T15:00:00Z.`,
+          text:
+            `start "${args.start}" isn't a date StickyInc can read. Try words like ` +
+            `"Friday 3pm", or ISO 8601 (2026-04-24T15:00).`,
         },
       ],
       isError: true,
@@ -44,7 +47,7 @@ export async function handleScheduleEvent(args: {
       {
         type: "text" as const,
         text:
-          `Scheduled task #${task.id}: ${args.title} @ ${start}` +
+          `Scheduled task #${task.id}: ${args.title}, ${describeDue(start)}` +
           (args.end ? ` → ${args.end}` : "") +
           `\n(If you want this on your Google Calendar too, ask me in the same ` +
           `turn — I'll use my Google Calendar connector. StickyInc only stores ` +

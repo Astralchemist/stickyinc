@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
-import { timeContext, toStoredDue } from "../dates.js";
+import { describeDue, resolveDue, type Due } from "../dates.js";
 import { resolveLLMProvider } from "../providers/index.js";
 
 export const addTaskNaturalSchema = {
@@ -14,23 +14,23 @@ export const addTaskNaturalSchema = {
 
 interface ParsedTask {
   text: string;
-  due_at: string | null;
+  due: Due | null;
 }
 
+// The model only finds the words that say when; resolveDue turns them into
+// a date, so the arithmetic is deterministic.
 const SYSTEM_PROMPT = `You convert a user phrase into a JSON task description.
 
 Output ONLY a single JSON object, no prose, no code fences. Schema:
 {
   "text": "<the thing to do, concise, no date>",
-  "due_at": "<local date-time YYYY-MM-DDTHH:MM, or null>"
+  "due": "<the words that say when, copied from the phrase, or null>"
 }
 
 Rules:
 - "text" is the action, cleaned of date/time phrasing.
-- "due_at" is the user's local time, with no offset or Z, or null if no time is implied. Take weekdays and "tomorrow" from the dates listed below.
-- A weekday means its next occurrence; if that is today and the time has already passed, the one a week later.
-- If a date is given without a time, use 09:00.
-- If only a time is given, use today (or tomorrow if that time has passed).`;
+- "due" copies the date/time words as written ("Friday 3pm", "tomorrow", "in 2 hours", "next week"), or null if the phrase doesn't say when.
+- Don't work out a date; copy the words. If an hour has no am/pm, add the one the user means.`;
 
 function stripFences(s: string): string {
   return s
@@ -64,28 +64,28 @@ async function parseTask(input: string): Promise<ParsedTask> {
   const res = await provider.chat({
     system: SYSTEM_PROMPT,
     messages: [
-      { role: "user", content: `${timeContext()}\n\nPhrase: ${input}` },
+      { role: "user", content: `Phrase: ${input}` },
     ],
     response_format: "json",
     max_tokens: 200,
     temperature: 0,
   });
 
-  const parsed = extractJson(res.content) as Partial<ParsedTask>;
+  const parsed = extractJson(res.content) as { text?: unknown; due?: unknown } | null;
   if (!parsed || typeof parsed.text !== "string") {
     throw new Error(`LLM returned malformed task: ${res.content.slice(0, 200)}`);
   }
   return {
     text: parsed.text,
-    due_at: typeof parsed.due_at === "string" ? toStoredDue(parsed.due_at) : null,
+    due: typeof parsed.due === "string" && parsed.due.trim() ? resolveDue(parsed.due) : null,
   };
 }
 
 export async function handleAddTaskNatural(args: { input: string }) {
   try {
     const parsed = await parseTask(args.input);
-    const task = addTask(parsed.text, parsed.due_at);
-    const due = task.due_at ? ` (due ${task.due_at})` : "";
+    const task = addTask(parsed.text, parsed.due);
+    const due = parsed.due ? `, ${describeDue(parsed.due)}` : "";
     return {
       content: [
         {

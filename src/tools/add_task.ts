@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { addTask } from "../db.js";
-import { toStoredDue } from "../dates.js";
+import { describeDue, resolveDue } from "../dates.js";
 
 export const addTaskSchema = {
   text: z.string().min(1).describe("The task text, e.g. 'Call the dentist'"),
@@ -8,31 +8,35 @@ export const addTaskSchema = {
     .string()
     .optional()
     .describe(
-      "Optional due date/time, ISO 8601. With Z or an offset it's exact ('2026-04-24T15:00:00Z'); " +
-        "without one it's the user's local time ('2026-04-24T15:00'); a date alone means 09:00 local."
+      "Optional: when it's due, in the user's own words ('tomorrow', 'Friday 3pm', 'in 2 hours', " +
+        "'next week'). Don't work out the date yourself; StickyInc does, in the user's time zone. " +
+        "Add am/pm to a bare hour. ISO 8601 works too: with Z or an offset it's exact, without one " +
+        "it's local time. No time of day means 09:00 local."
     ),
 };
 
 export async function handleAddTask(args: { text: string; due_at?: string }) {
-  const dueAt = args.due_at ? toStoredDue(args.due_at) : null;
-  if (args.due_at && !dueAt) {
+  const due = args.due_at ? resolveDue(args.due_at) : null;
+  if (due && !due.at) {
     return {
       content: [
         {
           type: "text" as const,
-          text: `due_at "${args.due_at}" isn't a date/time. Use ISO 8601, e.g. 2026-04-24T15:00:00Z.`,
+          text:
+            `due_at "${args.due_at}" isn't a date StickyInc can read. Try words like ` +
+            `"Friday 5pm" or "in 3 days", or ISO 8601 (2026-04-24T17:00).`,
         },
       ],
       isError: true,
     };
   }
-  const task = addTask(args.text, dueAt);
-  const due = task.due_at ? ` (due ${task.due_at})` : "";
+  const task = addTask(args.text, due);
+  const dueText = due ? `, ${describeDue(due)}` : "";
   return {
     content: [
       {
         type: "text" as const,
-        text: `Added task #${task.id}: ${task.text}${due}`,
+        text: `Added task #${task.id}: ${task.text}${dueText}`,
       },
     ],
   };

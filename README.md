@@ -157,12 +157,22 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 
 | Tool | What it does |
 |---|---|
-| `add_task` | Add a todo. Optional `due_at` (ISO date). |
-| `add_task_natural` | Parse free text ("*call dentist Friday 3pm*") via the configured LLM. |
+| `add_task` | Add a todo. Optional `due_at`: the user's words (*"Friday 3pm"*, *"tomorrow"*) or ISO 8601. |
+| `add_task_natural` | Parse free text ("*call dentist Friday 3pm*"): the configured LLM finds the task and the words that say when. |
 | `list_tasks` | Return open tasks; silently appends `Done today (N)` so Claude has state continuity. |
 | `list_done` | Return recently completed tasks, optional archive. |
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
+
+### Due dates
+
+The server works out due dates, not the model, so the same words at the same moment always give the same date. Claude passes along what you said (*"Friday 3pm"*, *"tomorrow"*, *"in 2 hours"*, *"next week"*) and StickyInc reads it with [chrono](https://github.com/wanasit/chrono), in your time zone.
+
+- A day with no time means 9 am. "Today" after 9 am means the end of today.
+- Relative words are read against when they were said: the moment of the tool call, or the message's timestamp for passive extraction.
+- Your words are stored in `due_phrase` next to `due_at`, and the task's create event records the moment they were read against, so any date can be traced back to what was said.
+
+`add_task` rejects words it can't read (*"EOD"*, *"the 5th"*) so Claude can rephrase; `add_task_natural` and passive extraction keep the task without a due date.
 
 ### Keeping tasks somewhere else
 

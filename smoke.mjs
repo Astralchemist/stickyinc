@@ -89,7 +89,7 @@ try {
 
   await tool("add_task with UTC due", "add_task",
     { text: "Try the smoke test", due_at: "2026-04-24T15:00:00Z" },
-    { includes: ["#1", "due 2026-04-24T15:00:00Z"] });
+    { includes: ["#1", "(2026-04-24T15:00:00Z)"] });
   await tool("add_task rejects a non-date due", "add_task",
     { text: "Bad due", due_at: "next-ish week" }, { error: true });
   await tool("add_task_natural fails cleanly with no reachable LLM", "add_task_natural",
@@ -97,8 +97,15 @@ try {
   await tool("add_task plain", "add_task", { text: "Call the dentist" }, { includes: ["#2"] });
   await tool("schedule_event", "schedule_event",
     { title: "Design review", start: "2026-04-23T10:00:00Z", end: "2026-04-23T11:00:00Z" },
-    { includes: ["#3", "2026-04-23T10:00:00Z"] });
-  await tool("list_tasks (open)", "list_tasks", {}, { includes: ["#1", "#2", "#3"] });
+    { includes: ["#3", "(2026-04-23T10:00:00Z)"] });
+  // Same TZ as the server, so this is the date it should work out.
+  const now = new Date();
+  const tomorrow9 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9)
+    .toISOString().replace(/\.\d{3}Z$/, "Z");
+  await tool("add_task reads 'tomorrow' as 09:00 local", "add_task",
+    { text: "Buy bread", due_at: "tomorrow" },
+    { includes: ["#4", `(${tomorrow9}) from "tomorrow"`] });
+  await tool("list_tasks (open)", "list_tasks", {}, { includes: ["#1", "#2", "#3", "#4"] });
   await tool("complete_task #1", "complete_task", { id: 1 }, { includes: ["Completed #1"] });
   await tool("complete_task #1 again is an error", "complete_task", { id: 1 },
     { error: true, includes: ["already completed"] });
