@@ -1,8 +1,11 @@
-import Database from "better-sqlite3";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+// Built-in driver (Node 22.13+), not better-sqlite3: the pane ships this
+// server as a single bundled file run by the user's own `node`, and a native
+// addon can't be bundled or matched to an unknown Node ABI.
+import { DatabaseSync } from "node:sqlite";
 import type { Task } from "./types.js";
 
 const DATA_DIR = join(homedir(), ".stickyinc");
@@ -10,8 +13,25 @@ const DB_PATH = join(DATA_DIR, "tasks.db");
 
 mkdirSync(DATA_DIR, { recursive: true });
 
-export const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
+export const db = new DatabaseSync(DB_PATH);
+db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;`);
+
+/**
+ * Run `fn` in a write transaction. IMMEDIATE takes the write lock up front,
+ * so read-then-write bodies wait on busy_timeout instead of failing with
+ * SQLITE_BUSY when the pane or watcher commits in between.
+ */
+function inTransaction<T>(fn: () => T): T {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
 
 // Phase 1: tables and indexes that don't depend on columns added by
 // migrations below. Creating the uuid UNIQUE INDEX here would fail on
@@ -65,10 +85,9 @@ db.exec(`
   }[];
   if (pending.length > 0) {
     const setUuid = db.prepare(`UPDATE tasks SET uuid = ? WHERE id = ?`);
-    const txn = db.transaction(() => {
+    inTransaction(() => {
       for (const row of pending) setUuid.run(randomUUID(), row.id);
     });
-    txn();
   }
 }
 
@@ -198,12 +217,11 @@ export function addTask(
 ): Task {
   const taskUuid = randomUUID();
   const fp = fingerprint(text);
-  const inside = db.transaction((): Task => {
-    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as Task;
+  return inTransaction((): Task => {
+    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as unknown as Task;
     recordEvent("create", taskUuid, { text, due_at: dueAt, source });
     return task;
   });
-  return inside();
 }
 
 /**
@@ -217,15 +235,14 @@ export function addTaskUnique(
   source = "claude"
 ): { task: Task; inserted: boolean } {
   const fp = fingerprint(text);
-  const inside = db.transaction((): { task: Task; inserted: boolean } => {
+  return inTransaction((): { task: Task; inserted: boolean } => {
     const existing = findOpenByFingerprintStmt.get(fp) as Task | undefined;
     if (existing) return { task: existing, inserted: false };
     const taskUuid = randomUUID();
-    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as Task;
+    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as unknown as Task;
     recordEvent("create", taskUuid, { text, due_at: dueAt, source });
     return { task, inserted: true };
   });
-  return inside();
 }
 
 export function countDoneToday(): number {
@@ -233,19 +250,19 @@ export function countDoneToday(): number {
 }
 
 export function listOpenTasks(): Task[] {
-  return selectOpenStmt.all() as Task[];
+  return selectOpenStmt.all() as unknown as Task[];
 }
 
 export function listAllTasks(limit = 50): Task[] {
-  return selectAllStmt.all(limit) as Task[];
+  return selectAllStmt.all(limit) as unknown as Task[];
 }
 
 export function listRecentlyCompleted(hoursAgo = 24): Task[] {
-  return selectRecentDoneStmt.all(`-${hoursAgo} hours`) as Task[];
+  return selectRecentDoneStmt.all(`-${hoursAgo} hours`) as unknown as Task[];
 }
 
 export function listArchived(hoursAgo = 24, limit = 100): Task[] {
-  return selectArchivedStmt.all(`-${hoursAgo} hours`, limit) as Task[];
+  return selectArchivedStmt.all(`-${hoursAgo} hours`, limit) as unknown as Task[];
 }
 
 /**
@@ -254,7 +271,7 @@ export function listArchived(hoursAgo = 24, limit = 100): Task[] {
  * on already-completed or nonexistent ids, matching prior behavior.
  */
 export function completeTask(id: number): Task | null {
-  const inside = db.transaction((): Task | null => {
+  return inTransaction((): Task | null => {
     const prior = completeTaskFindStmt.get(id) as
       | { uuid: string; completed_at: string | null }
       | undefined;
@@ -265,7 +282,6 @@ export function completeTask(id: number): Task | null {
     }
     return (getTaskStmt.get(id) as Task | undefined) ?? null;
   });
-  return inside();
 }
 
 export function getTask(id: number): Task | null {

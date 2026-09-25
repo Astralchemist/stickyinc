@@ -109,7 +109,7 @@ Pre-built binaries ship from every tagged release. Signed and notarized builds a
 
 > **[Grab the latest release →](https://github.com/Astralchemist/stickyinc/releases/latest)**
 
-First launch pops a one-minute setup wizard: pick an LLM provider, paste a key, confirm the MCP registration. No terminal commands.
+First launch pops a one-minute setup wizard: pick an LLM provider, paste a key, confirm the MCP registration. No terminal commands. The MCP server runs on your own Node, so you need [Node.js 22.13+](https://nodejs.org) installed.
 
 ---
 
@@ -288,7 +288,7 @@ sudo apt-get install -y \
   librsvg2-dev libxdo-dev libssl-dev build-essential curl wget file
 ```
 
-macOS and Windows need only Rust + Node. Release builds run through GitHub Actions — see `.github/workflows/build.yml`.
+macOS and Windows need only Rust + Node 22.13+. Release builds run through GitHub Actions — see `.github/workflows/build.yml`.
 
 ---
 
