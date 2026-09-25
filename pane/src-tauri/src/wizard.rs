@@ -622,6 +622,12 @@ pub fn wizard_set_watcher_enabled(app: tauri::AppHandle, enabled: bool) -> Resul
 }
 
 /// Whether the user turned on passive extraction in setup.
+/// For the settings screen: whether passive extraction is on.
+#[tauri::command]
+pub fn wizard_read_watcher_enabled() -> bool {
+    watcher_enabled()
+}
+
 pub fn watcher_enabled() -> bool {
     read_json(&setup_sentinel_path())
         .get("watcher_enabled")

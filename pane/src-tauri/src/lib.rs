@@ -14,7 +14,8 @@ use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 use crate::wizard::{
     open_wizard, open_wizard_window, setup_is_complete, wizard_close,
     wizard_detect_subscriptions, wizard_diff_claude_json, wizard_list_openrouter_models,
-    wizard_mark_complete, wizard_read_llm_config, wizard_register_mcp, wizard_save_llm_config,
+    wizard_mark_complete, wizard_read_llm_config, wizard_read_watcher_enabled, wizard_register_mcp,
+    wizard_save_llm_config,
     wizard_set_watcher_enabled, wizard_validate_llm_key,
 };
 
@@ -580,6 +581,7 @@ pub fn run() {
             wizard_list_openrouter_models,
             wizard_register_mcp,
             wizard_read_llm_config,
+            wizard_read_watcher_enabled,
             wizard_save_llm_config,
             wizard_validate_llm_key,
             wizard_set_watcher_enabled,

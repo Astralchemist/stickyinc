@@ -390,6 +390,11 @@ function collapse(): void {
   }, 400);
 }
 
+function showSetupOrSettings(): void {
+  (document.getElementById("setup-link") as HTMLElement).hidden = setupComplete;
+  (document.getElementById("settings-link") as HTMLElement).hidden = !setupComplete;
+}
+
 async function bootstrap(): Promise<void> {
   setupComplete = await invoke<boolean>("get_setup_complete").catch(() => false);
   await setMode(restingMode());
@@ -415,15 +420,20 @@ async function bootstrap(): Promise<void> {
   document.documentElement.addEventListener("mouseleave", collapse);
   tasksEl.addEventListener("scroll", hideProvenance);
 
-  document.getElementById("setup-link")?.addEventListener("click", () => {
-    void invoke("open_wizard");
-  });
+  // "setup" until the wizard is finished, then a gear that opens settings.
+  showSetupOrSettings();
+  for (const id of ["setup-link", "settings-link"]) {
+    document.getElementById(id)?.addEventListener("click", () => {
+      void invoke("open_wizard");
+    });
+  }
 
   await refresh();
 
   await listen("tasks-changed", () => refresh());
   await listen("setup-complete", async () => {
     setupComplete = true;
+    showSetupOrSettings();
     // User just finished the wizard — flip into strip mode and stop hiding.
     if (currentMode === "hidden") {
       await setMode("strip");

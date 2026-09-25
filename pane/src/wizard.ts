@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-type StepName = "welcome" | "provider" | "claude" | "watcher" | "done";
+type StepName = "welcome" | "provider" | "claude" | "watcher" | "done" | "settings";
 const ORDER: StepName[] = ["welcome", "provider", "claude", "watcher", "done"];
 
 type Provider =
@@ -53,7 +53,14 @@ const state = {
   claudeResolution: "replace" as "replace" | "skip",
   detected: null as SubscriptionDetection | null,
   openrouterModels: null as ModelInfo[] | null,
+  /** Opened from the pane's gear after setup: each step returns to "settings". */
+  settings: false,
 };
+
+/** Where a step goes when it's finished: the next step, or back to settings. */
+function after(next: StepName): void {
+  goto(state.settings ? "settings" : next);
+}
 
 /** What the model box starts with, and suggests, per provider. */
 const DEFAULT_MODELS: Partial<Record<Provider, string>> = {
@@ -84,6 +91,42 @@ function goto(step: StepName): void {
 
   if (step === "provider") void onEnterProviderStep();
   if (step === "claude") void loadClaudeDiff();
+  if (step === "settings") void loadSettings();
+}
+
+const PROVIDER_NAMES: Record<Provider, string> = {
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter",
+  openai: "OpenAI",
+  compat: "OpenAI-compatible server",
+  "claude-code": "Your Claude Code subscription",
+  codex: "Your ChatGPT subscription (Codex)",
+  gemini: "Your Gemini subscription",
+  local: "A local model",
+};
+
+/** Fill in the settings overview from what's saved now. */
+async function loadSettings(): Promise<void> {
+  const llm = await invoke<LLMConfig | null>("wizard_read_llm_config").catch(() => null);
+  $("#settings-llm").textContent = llm
+    ? [PROVIDER_NAMES[llm.provider] ?? llm.provider, llm.model].filter(Boolean).join(" · ")
+    : "Not set up";
+
+  const claude = $("#settings-claude");
+  try {
+    const diff = await invoke<ClaudeDiff>("wizard_diff_claude_json");
+    claude.textContent =
+      diff.state === "same" ? "Connected"
+      : diff.state === "new" ? "Not connected"
+      : "Connected to a different StickyInc";
+  } catch (err) {
+    claude.textContent = err instanceof Error ? err.message : String(err);
+  }
+
+  const watching = await invoke<boolean>("wizard_read_watcher_enabled").catch(() => false);
+  $("#settings-watcher").textContent = watching
+    ? "On: listening to Claude Code for commitments"
+    : "Off";
 }
 
 /* ─── provider step: subscription detection + BYOK toggle ──────────────── */
@@ -188,7 +231,7 @@ async function pickDetected(provider: Provider): Promise<void> {
   try {
     await invoke("wizard_save_llm_config", { cfg });
     state.llm = cfg;
-    goto("claude");
+    after("claude");
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
   }
@@ -298,7 +341,7 @@ async function validateAndContinue(): Promise<void> {
     out.textContent = `Key works. Responded as ${result.model}.`;
     await invoke("wizard_save_llm_config", { cfg });
     state.llm = cfg;
-    setTimeout(() => goto("claude"), 600);
+    setTimeout(() => after("claude"), 600);
   } catch (err) {
     out.className = "validate err";
     out.textContent = err instanceof Error ? err.message : String(err);
@@ -355,12 +398,12 @@ async function loadClaudeDiff(): Promise<void> {
 
 async function registerClaude(resolution: "add" | "replace" | "skip"): Promise<void> {
   if (resolution === "skip") {
-    goto("watcher");
+    after("watcher");
     return;
   }
   try {
     await invoke("wizard_register_mcp", { resolution });
-    goto("watcher");
+    after("watcher");
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
   }
@@ -373,7 +416,7 @@ async function finish(watcherOn: boolean): Promise<void> {
   } catch {
     /* non-fatal */
   }
-  goto("done");
+  after("done");
 }
 
 /* ─── bindings ─────────────────────────────────────────────────────────── */
@@ -401,15 +444,21 @@ function bind(): void {
     showBlock("detected");
   });
 
+  // In settings, "← Back" leaves the step being changed for the overview.
   document.querySelectorAll<HTMLElement>("[data-go]").forEach((el) => {
-    el.addEventListener("click", () => goto(el.dataset.go as StepName));
+    el.addEventListener("click", () => goto(state.settings ? "settings" : (el.dataset.go as StepName)));
   });
+
+  document.querySelectorAll<HTMLElement>("[data-settings-go]").forEach((el) => {
+    el.addEventListener("click", () => goto(el.dataset.settingsGo as StepName));
+  });
+  $("#settings-done").addEventListener("click", () => void invoke("wizard_close"));
 
   $("#claude-confirm").addEventListener("click", () => {
     const diff = state.claudeDiff;
     if (!diff) return;
     if (diff.state === "same") {
-      goto("watcher");
+      after("watcher");
       return;
     }
     void registerClaude("add");
@@ -442,5 +491,12 @@ function bind(): void {
   });
 }
 
-bind();
-goto("welcome");
+/** First run walks through every step; once set up, it opens on settings. */
+async function start(): Promise<void> {
+  bind();
+  state.settings = await invoke<boolean>("get_setup_complete").catch(() => false);
+  $("#dots").hidden = state.settings;
+  goto(state.settings ? "settings" : "welcome");
+}
+
+void start();
