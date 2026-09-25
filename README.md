@@ -288,6 +288,13 @@ StickyInc intentionally doesn't ship its own Google OAuth flow. It's the single 
 
 When you want a real calendar event, ask Claude in the same turn. `schedule_event` stores the dated task in StickyInc; Claude creates the calendar entry via its own connector. One less thing for you to set up, one less place your tokens live.
 
+### Your dated tasks in any calendar (.ics)
+
+While the pane runs, it keeps `~/.stickyinc/stickyinc.ics` up to date: every open task with a due date is a 30-minute event at its due time, with the words it came from in the notes. Finished tasks drop out. Each event's UID is its task's, so a calendar that refreshes the file updates events instead of adding copies. (Tasks added while the pane is closed appear the next time it opens.)
+
+- **Apple Calendar:** File → New Calendar Subscription…, then paste the file's address: `file:///Users/<you>/.stickyinc/stickyinc.ics`. The pane's gear → Settings → Calendar → **Copy address** gives you yours. Pick an auto-refresh interval and your tasks stay in step.
+- **Google Calendar, Outlook and others** can't read a file on your computer, so import it instead (Google: Settings → Import & export). That's a one-time copy; import again to pick up changes.
+
 ---
 
 ## Design axioms

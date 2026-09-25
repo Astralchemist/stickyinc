@@ -56,6 +56,8 @@ const state = {
   openrouterModels: null as ModelInfo[] | null,
   /** Opened from the pane's gear after setup: each step returns to "settings". */
   settings: false,
+  /** file:// address of ~/.stickyinc/stickyinc.ics, for "Copy address". */
+  calendarUrl: "",
 };
 
 /** Where a step goes when it's finished: the next step, or back to settings. */
@@ -123,6 +125,12 @@ async function loadSettings(): Promise<void> {
   } catch (err) {
     claude.textContent = err instanceof Error ? err.message : String(err);
   }
+
+  const calendar = await invoke<string>("calendar_file_path").catch(() => "");
+  state.calendarUrl = calendar ? `file://${calendar.startsWith("/") ? "" : "/"}${calendar.replace(/\\/g, "/")}` : "";
+  $("#settings-calendar").textContent = calendar
+    ? `Your dated tasks, in ${calendar}. Subscribe to it in Apple Calendar, or import it elsewhere.`
+    : "Unavailable";
 
   const watching = await invoke<boolean>("wizard_read_watcher_enabled").catch(() => false);
   $("#settings-watcher").textContent = watching
@@ -454,6 +462,16 @@ function bind(): void {
     el.addEventListener("click", () => goto(el.dataset.settingsGo as StepName));
   });
   $("#settings-done").addEventListener("click", () => void invoke("wizard_close"));
+  $("#settings-copy-calendar").addEventListener("click", async (e) => {
+    const button = e.currentTarget as HTMLButtonElement;
+    try {
+      await navigator.clipboard.writeText(state.calendarUrl);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Select it above";
+    }
+    setTimeout(() => (button.textContent = "Copy address"), 2000);
+  });
   $("#settings-show-tour").addEventListener("click", () => {
     void emit("show-tour");
     $("#settings-tour").textContent = "Showing in the pane now: open it from the right edge.";

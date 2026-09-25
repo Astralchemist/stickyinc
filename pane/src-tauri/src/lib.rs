@@ -64,6 +64,32 @@ fn db_path() -> PathBuf {
     p
 }
 
+/// ~/.stickyinc/stickyinc.ics, which calendars subscribe to or import.
+fn calendar_path() -> PathBuf {
+    db_path().with_file_name("stickyinc.ics")
+}
+
+/// Write via a temp file and a rename, so a calendar reading it mid-update
+/// sees the old file or the new one, never half of one.
+fn write_atomically(path: &std::path::Path, contents: &str) -> std::io::Result<()> {
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, contents)?;
+    std::fs::rename(&tmp, path)
+}
+
+/// The pane builds the calendar file (src/calendar.ts, with the ics
+/// package) whenever its dated tasks change; this puts it on disk.
+#[tauri::command]
+fn write_calendar(ics: String) -> Result<(), String> {
+    write_atomically(&calendar_path(), &ics).map_err(|e| e.to_string())
+}
+
+/// Where the calendar file is, for Settings to show and copy.
+#[tauri::command]
+fn calendar_file_path() -> String {
+    calendar_path().to_string_lossy().into_owned()
+}
+
 fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
     let conn = Connection::open(path)?;
     conn.busy_timeout(Duration::from_secs(5))?;
@@ -573,6 +599,8 @@ pub fn run() {
             complete_task,
             add_task_quickadd,
             close_quickadd,
+            write_calendar,
+            calendar_file_path,
             get_setup_complete,
             open_wizard,
             wizard_close,
@@ -736,6 +764,18 @@ mod tests {
         assert_eq!(new.source_excerpt.as_deref(), Some("I need to email Sarah"));
         drop(conn);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn calendar_file_is_replaced_whole() {
+        let dir = std::env::temp_dir().join(format!("stickyinc-cal-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("stickyinc.ics");
+        write_atomically(&path, "old").unwrap();
+        write_atomically(&path, "BEGIN:VCALENDAR").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "BEGIN:VCALENDAR");
+        assert!(!path.with_extension("tmp").exists(), "no temp file left behind");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

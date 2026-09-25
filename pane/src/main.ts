@@ -4,6 +4,7 @@ import { getCurrentWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/
 import { currentMonitor } from "@tauri-apps/api/window";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { calendarFile } from "./calendar";
 
 interface Task {
   id: number;
@@ -66,6 +67,8 @@ let knownTaskIds: Set<number> | null = null;
 let lastDueCheck = Date.now();
 let seededSetupBulge = false;
 let provenanceTimer: number | null = null;
+/** What the calendar file was last written from; unchanged tasks, no write. */
+let calendarKey = "";
 /** Index into TOUR while the tour is showing. */
 let tourStep: number | null = null;
 /** The task whose card is showing or about to show; refresh() carries it over. */
@@ -346,6 +349,22 @@ async function checkDueCrossings(): Promise<void> {
   lastDueCheck = now;
 }
 
+/**
+ * Keep ~/.stickyinc/stickyinc.ics in step with the open dated tasks. Only
+ * when they change: the file's timestamps would differ on every refresh.
+ */
+async function writeCalendar(open: Task[]): Promise<void> {
+  const dated = open.filter((t) => t.due_at);
+  const key = JSON.stringify(dated.map((t) => [t.uuid, t.text, t.due_at, t.source_client, t.source_excerpt]));
+  if (key === calendarKey) return;
+  try {
+    await invoke("write_calendar", { ics: calendarFile(dated) });
+    calendarKey = key;
+  } catch (err) {
+    console.error("calendar export failed", err);
+  }
+}
+
 async function refresh(): Promise<void> {
   try {
     const [open, recent, archived] = await Promise.all([
@@ -362,6 +381,7 @@ async function refresh(): Promise<void> {
 
     renderOpen(open);
     detectBulges(open);
+    void writeCalendar(open);
 
     recentSection.hidden = recent.length === 0;
     renderDoneList(recentEl, recent);

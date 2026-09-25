@@ -418,6 +418,11 @@ button.ghost:hover { color: var(--ink); background: var(--soft); }
   margin-top: 3px;
   overflow-wrap: anywhere;
 }
+.settings-value.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  font-size: 12px;
+}
 
 /* progress dots */
 #dots {
