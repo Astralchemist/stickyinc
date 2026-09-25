@@ -1,19 +1,45 @@
+/* The landing page wears the app's look: sticky notes on a plain desk. Paper
+   yellow and warm ink by day; charcoal notes and yellow ink by night. */
 :root {
-  --paper: #f4efe4;
-  --paper-soft: rgba(27, 24, 21, 0.035);
-  --paper-sunk: rgba(27, 24, 21, 0.055);
-  --ink: #1b1815;
-  --ink-2: rgba(27, 24, 21, 0.7);
-  --muted: rgba(27, 24, 21, 0.55);
-  --hairline: rgba(27, 24, 21, 0.12);
-  --hairline-strong: rgba(27, 24, 21, 0.22);
-  --accent: #d8663e;
-  --accent-hover: #c45a34;
+  --desk: #f5f5f1;
+  --note-top: #fff5b3;
+  --note-bottom: #fbe98f;
+  --ink: #2d2a22;
+  --ink-2: rgba(45, 42, 34, 0.74);
+  --muted: rgba(45, 42, 34, 0.56);
+  --rule: rgba(90, 70, 0, 0.24);
+  --rule-strong: rgba(90, 70, 0, 0.4);
+  --sunk: rgba(90, 70, 0, 0.06);
+  --tape: rgba(255, 255, 255, 0.6);
+  --shadow: rgba(60, 45, 0, 0.18);
+  --accent: #d4452a;
+  --accent-hover: #b93a22;
+  --on-ink: #fff5b3;
 
   --page-pad-x: clamp(20px, 5vw, 80px);
   --max-reading: 58ch;
 
-  --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
+  --serif: "Newsreader", ui-serif, "New York", "Iowan Old Style", Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --desk: #1b1a18;
+    --note-top: #302e28;
+    --note-bottom: #282722;
+    --ink: #f2e4a0;
+    --ink-2: rgba(242, 228, 160, 0.78);
+    --muted: rgba(242, 228, 160, 0.56);
+    --rule: rgba(242, 228, 160, 0.18);
+    --rule-strong: rgba(242, 228, 160, 0.34);
+    --sunk: rgba(242, 228, 160, 0.06);
+    --tape: rgba(242, 228, 160, 0.16);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --accent: #ff7a5c;
+    --accent-hover: #ff9478;
+    --on-ink: #1b1a18;
+    color-scheme: dark;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -23,9 +49,9 @@ html { scroll-behavior: smooth; }
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--paper);
+  background: var(--desk);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -40,6 +66,7 @@ body {
 }
 
 a { color: inherit; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 
 em {
   font-style: italic;
@@ -48,12 +75,31 @@ em {
 
 code {
   font-family: var(--mono);
-  font-size: 0.92em;
-  background: var(--paper-sunk);
+  font-size: 0.9em;
+  background: var(--sunk);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 3px;
   color: var(--ink);
   letter-spacing: -0.005em;
+}
+
+/* A sticky note: yellow paper, a soft lift, and a strip of tape. */
+.note {
+  position: relative;
+  background: linear-gradient(180deg, var(--note-top), var(--note-bottom));
+  border-radius: 2px;
+  box-shadow: 0 10px 24px var(--shadow), inset 0 1px 0 var(--tape);
+}
+.note::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 84px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 /* ── TOPBAR ───────────────────────────────────────────────────────────── */
@@ -68,9 +114,9 @@ code {
 
 .brand {
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.015em;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ink);
 }
 
@@ -79,10 +125,9 @@ code {
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--muted);
-  border: 1px solid var(--hairline);
+  border: 1px dashed var(--rule-strong);
   padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--paper-soft);
+  border-radius: 3px;
 }
 
 .topnav {
@@ -116,18 +161,40 @@ code {
 }
 
 h1 {
-  font-size: clamp(44px, 8.5vw, 104px);
-  font-weight: 500;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
-  margin: 0 0 44px 0;
+  font-family: var(--serif);
+  font-size: clamp(46px, 8.5vw, 108px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0 0 48px 0;
   max-width: 14ch;
+  text-wrap: balance;
 }
 
+/* The one bold move: the second line is stuck on a note. */
 .hero-b {
-  color: var(--ink);
   display: inline-block;
   position: relative;
+  margin-top: 0.18em;
+  padding: 0.06em 0.28em 0.12em;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--note-top), var(--note-bottom));
+  border-radius: 2px;
+  transform: rotate(-1.2deg);
+  box-shadow: 0 14px 30px var(--shadow), inset 0 1px 0 var(--tape);
+}
+.hero-b::before {
+  content: "";
+  position: absolute;
+  top: -0.2em;
+  left: 50%;
+  width: 1.4em;
+  height: 0.34em;
+  transform: translateX(-50%) rotate(3deg);
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .lede {
@@ -151,7 +218,7 @@ h1 {
   font-weight: 500;
   text-decoration: none;
   padding: 12px 22px;
-  border-radius: 999px;
+  border-radius: 3px;
   border: 1px solid transparent;
   transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
   letter-spacing: 0.01em;
@@ -162,7 +229,7 @@ h1 {
 }
 .cta.primary {
   background: var(--ink);
-  color: var(--paper);
+  color: var(--on-ink);
 }
 .cta.primary::after {
   content: "↓";
@@ -172,17 +239,18 @@ h1 {
 }
 .cta.primary:hover {
   background: var(--accent);
+  color: #fff;
 }
 .cta.primary:hover::after {
   transform: translateY(3px);
 }
 .cta.ghost {
   color: var(--ink);
-  border-color: var(--hairline);
+  border: 1px dashed var(--rule-strong);
 }
 .cta.ghost:hover {
   border-color: var(--ink);
-  background: var(--paper-soft);
+  background: var(--sunk);
 }
 
 .sub {
@@ -205,21 +273,20 @@ h1 {
 }
 
 .section-title {
-  font-size: clamp(28px, 4vw, 52px);
-  font-weight: 500;
-  letter-spacing: -0.03em;
+  font-family: var(--serif);
+  font-size: clamp(30px, 4.2vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
   line-height: 1.05;
   margin: 0 0 56px 0;
   max-width: 22ch;
+  text-wrap: balance;
 }
 
 .idea, .how, .arch, .why, .download {
   padding: clamp(80px, 14vh, 140px) var(--page-pad-x);
   max-width: 1200px;
-}
-
-.how, .idea, .arch, .why, .download {
-  border-top: 1px solid var(--hairline);
+  border-top: 1px dashed var(--rule);
 }
 
 /* ── ASCII BLOCK ──────────────────────────────────────────────────────── */
@@ -229,9 +296,9 @@ h1 {
   font-size: clamp(10px, 1.05vw, 13px);
   line-height: 1.45;
   color: var(--ink);
-  background: var(--paper-sunk);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px dashed var(--rule-strong);
+  border-radius: 3px;
   padding: 24px 22px;
   margin: 0 0 40px 0;
   overflow-x: auto;
@@ -241,21 +308,42 @@ h1 {
   tab-size: 2;
 }
 
-/* ── STEPS ────────────────────────────────────────────────────────────── */
+/* ── STEPS: three notes on the desk ──────────────────────────────────── */
 
 .steps {
   list-style: none;
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: clamp(32px, 5vw, 72px);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(32px, 4vw, 56px);
 }
 
 .step {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 30px 24px 26px;
+  background: linear-gradient(180deg, var(--note-top), var(--note-bottom));
+  border-radius: 2px;
+  box-shadow: 0 10px 24px var(--shadow), inset 0 1px 0 var(--tape);
+  position: relative;
+  transform: rotate(-0.8deg);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.step:nth-child(2) { transform: rotate(0.9deg); }
+.step:nth-child(3) { transform: rotate(-0.4deg); }
+.step:hover { transform: rotate(0deg) translateY(-3px); }
+.step::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 78px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .step-n {
@@ -267,11 +355,12 @@ h1 {
 }
 
 .step h3 {
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .step p {
@@ -329,7 +418,7 @@ h1 {
 }
 .ax-body strong {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.005em;
 }
 
@@ -344,7 +433,7 @@ h1 {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  text-decoration-color: var(--hairline-strong);
+  text-decoration-color: var(--rule-strong);
 }
 .dl-note a:hover {
   text-decoration-color: var(--accent);
@@ -364,29 +453,30 @@ h1 {
   flex-direction: column;
   gap: 10px;
   padding: 22px 22px 20px;
-  background: var(--paper);
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
+  background: transparent;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 3px;
   transition: border-color 180ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms ease;
 }
 .dl-card:hover {
-  border-color: var(--hairline-strong);
+  border-color: var(--ink);
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(27, 24, 21, 0.05);
 }
 
 .dl-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
   padding-bottom: 4px;
 }
 
 .dl-os {
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
@@ -404,8 +494,8 @@ h1 {
   color: var(--ink-2);
   margin: 0;
   padding: 8px 10px;
-  background: var(--paper-sunk);
-  border-radius: 6px;
+  background: var(--sunk);
+  border-radius: 3px;
   word-break: break-all;
   line-height: 1.4;
 }
@@ -417,12 +507,12 @@ h1 {
   letter-spacing: 0.005em;
   text-decoration: none;
   padding: 11px 18px;
-  border-radius: 999px;
+  border-radius: 3px;
   border: 1px solid transparent;
   text-align: center;
   transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
   background: var(--ink);
-  color: var(--paper);
+  color: var(--on-ink);
   margin-top: 6px;
   display: inline-flex;
   align-items: center;
@@ -431,14 +521,15 @@ h1 {
 }
 .dl-btn:hover {
   background: var(--accent);
+  color: #fff;
 }
 .dl-btn.ghost {
   background: transparent;
   color: var(--ink);
-  border-color: var(--hairline-strong);
+  border: 1px dashed var(--rule-strong);
 }
 .dl-btn.ghost:hover {
-  background: var(--paper-soft);
+  background: var(--sunk);
   border-color: var(--ink);
 }
 
@@ -452,8 +543,7 @@ h1 {
 }
 
 .dl-source {
-  background: transparent;
-  border-style: dashed;
+  opacity: 0.85;
 }
 
 .dl-footer {
@@ -463,7 +553,7 @@ h1 {
 .dl-all {
   text-decoration: none;
   color: var(--muted);
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px dashed var(--rule-strong);
   padding-bottom: 2px;
   transition: color 160ms ease, border-color 160ms ease;
 }
@@ -472,11 +562,14 @@ h1 {
   border-color: var(--ink);
 }
 
-/* Highlight the card that matches the visitor's detected platform. */
+/* The visitor's own platform gets the note. */
 .dl-card.detected {
-  border-color: var(--accent);
-  background: linear-gradient(180deg, rgba(216, 102, 62, 0.04), transparent 70%);
+  border: none;
+  background: linear-gradient(180deg, var(--note-top), var(--note-bottom));
+  box-shadow: 0 10px 24px var(--shadow), inset 0 1px 0 var(--tape);
+  transform: rotate(-0.6deg);
 }
+.dl-card.detected:hover { transform: rotate(0deg) translateY(-2px); }
 .dl-card.detected .dl-os::after {
   content: "your platform";
   margin-left: 10px;
@@ -485,10 +578,12 @@ h1 {
   letter-spacing: 0.06em;
   text-transform: lowercase;
   color: var(--accent);
-  border: 1px solid rgba(216, 102, 62, 0.4);
+  border: 1px solid var(--accent);
   padding: 2px 7px;
-  border-radius: 999px;
-  vertical-align: 2px;
+  border-radius: 3px;
+  vertical-align: 3px;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* ── LINKS ROW ───────────────────────────────────────────────────────── */
@@ -503,7 +598,7 @@ h1 {
   flex-wrap: wrap;
   gap: 8px 12px;
   align-items: center;
-  border-top: 1px solid var(--hairline);
+  border-top: 1px dashed var(--rule);
 }
 .links-row a {
   text-decoration: none;
@@ -511,7 +606,7 @@ h1 {
   transition: color 160ms ease;
 }
 .links-row a:hover { color: var(--ink); }
-.sep { color: var(--hairline); }
+.sep { color: var(--rule-strong); }
 
 /* ── GROUND / WORDMARK ───────────────────────────────────────────────── */
 
@@ -522,7 +617,7 @@ h1 {
 
 .wordmark {
   font-size: clamp(120px, 26vw, 340px);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.06em;
   line-height: 0.9;
   margin: 0;
@@ -545,7 +640,7 @@ h1 {
   height: 0.12em;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 0.005em var(--paper);
+  box-shadow: 0 0 0 0.005em var(--desk);
 }
 
 .brand .i-letter .tittle {
@@ -554,7 +649,7 @@ h1 {
   top: 0.22em;
 }
 
-/* ── LIVE PANE DEMO (fixed, right edge) ──────────────────────────────── */
+/* ── LIVE PANE DEMO (fixed, right edge): the app's own note ──────────── */
 
 .demo-strip {
   position: fixed;
@@ -570,13 +665,13 @@ h1 {
 .demo-hit {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to left, rgba(27, 24, 21, 0.12), rgba(27, 24, 21, 0));
+  background: linear-gradient(to left, rgba(245, 214, 90, 0.55), transparent);
   transition: background 220ms ease;
   cursor: pointer;
 }
 .demo-strip:hover .demo-hit,
 .demo-strip.open .demo-hit {
-  background: linear-gradient(to left, rgba(27, 24, 21, 0.25), rgba(27, 24, 21, 0));
+  background: linear-gradient(to left, rgba(245, 214, 90, 0.8), transparent);
 }
 
 .demo-dot {
@@ -590,7 +685,7 @@ h1 {
   transform: translateY(-50%);
   opacity: 0;
   transition: opacity 220ms ease;
-  box-shadow: 0 0 8px rgba(216, 102, 62, 0.6);
+  box-shadow: 0 0 8px var(--accent);
   pointer-events: none;
 }
 .demo-strip.has-due .demo-dot { opacity: 1; }
@@ -601,17 +696,26 @@ h1 {
   right: 0;
   transform: translate(100%, -50%);
   width: 320px;
-  padding: 18px 16px 14px;
-  background: var(--paper);
-  border: 1px solid var(--hairline);
-  border-right: none;
-  border-top-left-radius: 14px;
-  border-bottom-left-radius: 14px;
-  box-shadow: -24px 0 60px rgba(27, 24, 21, 0.08);
+  padding: 22px 16px 14px;
+  background: linear-gradient(180deg, var(--note-top), var(--note-bottom));
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
+  box-shadow: -12px 14px 34px var(--shadow), inset 0 1px 0 var(--tape);
   transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.demo-pane::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 90px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: var(--tape);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 .demo-strip.open .demo-pane,
 .demo-strip:hover .demo-pane {
@@ -624,10 +728,10 @@ h1 {
   align-items: baseline;
   font-size: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px dashed var(--rule-strong);
 }
-.demo-title { font-weight: 500; letter-spacing: -0.01em; }
-.demo-title-muted { color: var(--muted); font-weight: 400; }
+.demo-title { font: 700 17px/1 var(--serif); letter-spacing: -0.01em; }
+.demo-title-muted { color: var(--muted); font-style: italic; font-weight: 400; }
 .demo-count { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 10.5px; }
 
 #demo-tasks {
@@ -645,18 +749,18 @@ h1 {
   gap: 10px;
   padding: 8px 2px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 2px;
   transition: background 140ms ease;
 }
-.demo-task:hover { background: var(--paper-soft); }
+.demo-task:hover { background: var(--sunk); }
 
 .demo-check {
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
-  margin-top: 2px;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  margin-top: 1px;
   border: 1.5px solid var(--muted);
-  border-radius: 4px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   transition: all 180ms ease;
@@ -669,7 +773,7 @@ h1 {
 .demo-task.done .demo-check::after {
   content: "✓";
   font-size: 10px;
-  color: var(--paper);
+  color: var(--note-top);
   font-weight: 700;
 }
 
@@ -685,7 +789,7 @@ h1 {
 
 .demo-pane footer {
   padding-top: 8px;
-  border-top: 1px solid var(--hairline);
+  border-top: 1px dashed var(--rule-strong);
 }
 .demo-hint {
   font-size: 10px;
@@ -707,6 +811,7 @@ h1 {
   .topbar { flex-wrap: wrap; }
   .topnav { width: 100%; margin-left: 0; margin-top: 10px; }
   .ascii { font-size: 10px; padding: 16px 14px; }
+  .step, .step:nth-child(2), .step:nth-child(3), .dl-card.detected { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
