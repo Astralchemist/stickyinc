@@ -7,6 +7,7 @@ import { listTasksSchema, handleListTasks } from "./tools/list_tasks.js";
 import { completeTaskSchema, handleCompleteTask } from "./tools/complete_task.js";
 import { scheduleEventSchema, handleScheduleEvent } from "./tools/schedule_event.js";
 import { listDoneSchema, handleListDone } from "./tools/list_done.js";
+import { stickySearchSchema, handleStickySearch } from "./tools/sticky_search.js";
 import { clientLabel } from "./provenance.js";
 
 const server = new McpServer({
@@ -80,6 +81,20 @@ server.registerTool(
     inputSchema: scheduleEventSchema,
   },
   (args) => handleScheduleEvent(args, client())
+);
+
+server.registerTool(
+  "sticky_search",
+  {
+    title: "Search Tasks",
+    description:
+      "Search everything the user has put in StickyInc, open and done, by words in the task or in " +
+      "what they said when it was added, optionally only since a date. Use it to remind them what " +
+      "they committed to and when, e.g. \"you said you'd call the dentist three weeks ago\". " +
+      "Returns up to 20 tasks, best match first.",
+    inputSchema: stickySearchSchema,
+  },
+  handleStickySearch
 );
 
 const transport = new StdioServerTransport();

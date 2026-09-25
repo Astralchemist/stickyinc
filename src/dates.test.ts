@@ -4,7 +4,7 @@ process.env.TZ = "America/Toronto"; // EDT (UTC-4) until Nov 1, 2026, then EST
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeDue, resolveDue } from "./dates.js";
+import { describeDue, resolveDue, resolveSince } from "./dates.js";
 
 /** Friday 2026-09-25, 10:30 in Toronto. */
 const FRI_1030 = new Date("2026-09-25T14:30:00Z");
@@ -82,4 +82,14 @@ test("describeDue leads with local time", () => {
     describeDue(resolveDue("EOD", FRI_1030)),
     `couldn't read "EOD" as a date, so no due date`
   );
+});
+
+test("since looks back, to the start of the day", () => {
+  assert.equal(resolveSince("3 weeks ago", FRI_1030), "2026-09-04T04:00:00Z"); // Sep 4, 00:00 local
+  assert.equal(resolveSince("yesterday", FRI_1030), "2026-09-24T04:00:00Z");
+  assert.equal(resolveSince("Monday", FRI_1030), "2026-09-21T04:00:00Z"); // not next Monday
+  assert.equal(resolveSince("Friday", FRI_1030), "2026-09-25T04:00:00Z"); // it's Friday: today
+  assert.equal(resolveSince("December 1", FRI_1030), "2025-12-01T05:00:00Z"); // last December (EST)
+  assert.equal(resolveSince("2026-09-01", FRI_1030), "2026-09-01T04:00:00Z");
+  assert.equal(resolveSince("whenever", FRI_1030), null);
 });

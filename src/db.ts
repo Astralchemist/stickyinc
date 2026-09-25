@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Due } from "./dates.js";
 import type { Provenance } from "./provenance.js";
+import { ftsQuery, likeAnywhere, searchWords, toSqliteUtc } from "./search.js";
 import type { Task } from "./types.js";
 
 /**
@@ -322,6 +323,76 @@ export function completeTask(id: number): { task: Task; completed: boolean } | n
     }
     return { task: getTaskStmt.get(id) as unknown as Task, completed };
   });
+}
+
+/**
+ * Whether this Node's SQLite has FTS5 (Node 22.16+ / 24+). The search index
+ * is a TEMP table, private to this connection and never written to tasks.db:
+ * an index kept by triggers there would make every write fail ("no such
+ * module: fts5") from a Node or pane build whose SQLite lacks FTS5.
+ */
+const HAS_FTS5 = (() => {
+  try {
+    db.exec(
+      `CREATE VIRTUAL TABLE IF NOT EXISTS temp.task_search
+         USING fts5(text, excerpt, tokenize = 'unicode61 remove_diacritics 2')`
+    );
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+export interface SearchOptions {
+  /** Words to find in the task text or the words it came from. */
+  query?: string;
+  status?: "open" | "done" | "all";
+  /** Only tasks added at or after this UTC ISO 8601 instant. */
+  since?: string;
+  limit?: number;
+}
+
+/**
+ * Search every task, open and done, by the words in its text or excerpt:
+ * best match first, or newest first when there are no words. The index is
+ * rebuilt from tasks on each search (a few ms for thousands of tasks); with
+ * no FTS5, every word just has to appear somewhere, newest first.
+ */
+export function searchTasks({ query = "", status = "all", since, limit = 20 }: SearchOptions): Task[] {
+  const words = searchWords(query);
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+  if (status === "open") where.push("t.completed_at IS NULL");
+  if (status === "done") where.push("t.completed_at IS NOT NULL");
+  if (since) {
+    where.push("t.created_at >= ?");
+    params.push(toSqliteUtc(since));
+  }
+
+  if (words.length > 0 && HAS_FTS5) {
+    db.exec(
+      `DELETE FROM temp.task_search;
+       INSERT INTO temp.task_search (rowid, text, excerpt)
+         SELECT id, text, source_excerpt FROM main.tasks;`
+    );
+    const filters = where.map((w) => ` AND ${w}`).join("");
+    return db
+      .prepare(
+        `SELECT t.* FROM temp.task_search JOIN main.tasks t ON t.id = task_search.rowid
+         WHERE task_search MATCH ?${filters}
+         ORDER BY task_search.rank LIMIT ?`
+      )
+      .all(ftsQuery(words), ...params, limit) as unknown as Task[];
+  }
+
+  for (const word of words) {
+    where.push(`(t.text LIKE ? ESCAPE '\\' OR t.source_excerpt LIKE ? ESCAPE '\\')`);
+    params.push(likeAnywhere(word), likeAnywhere(word));
+  }
+  const filters = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+  return db
+    .prepare(`SELECT t.* FROM main.tasks t ${filters} ORDER BY t.created_at DESC, t.id DESC LIMIT ?`)
+    .all(...params, limit) as unknown as Task[];
 }
 
 export { DB_PATH, DEVICE_ID };

@@ -161,6 +161,7 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 | `add_task_natural` | Parse free text ("*call dentist Friday 3pm*"): the configured LLM finds the task and the words that say when. |
 | `list_tasks` | Return open tasks; silently appends `Done today (N)` so Claude has state continuity. |
 | `list_done` | Return recently completed tasks, optional archive. |
+| `sticky_search` | Search every task, open and done, by the words in it or the words it came from; filter by `status` and `since` (*"3 weeks ago"*). Up to 20, best match first, each with when it was added. |
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
 

@@ -59,6 +59,30 @@ export function resolveDue(phrase: string, ref: Date = new Date()): Due {
 }
 
 /**
+ * The start of a "since" window for search: ISO 8601 or the user's words
+ * ("3 weeks ago", "last month", "September 1"), read against `ref` in local
+ * time and looking back, not forward. A day with no time of day means its
+ * start. UTC ISO 8601, or null if the words aren't a date.
+ */
+export function resolveSince(phrase: string, ref: Date = new Date()): string | null {
+  const s = phrase.trim();
+  if (ISO_DATE.test(s)) {
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : new Date(s);
+    return Number.isNaN(d.getTime()) ? null : stamp(d);
+  }
+  const [result] = chrono.parse(s, ref);
+  if (!result) return null;
+  const start = result.start;
+  const d = start.date();
+  if (!start.isCertain("hour")) d.setHours(0, 0, 0, 0);
+  // chrono takes the nearest match, which can be ahead: "since Monday" on a
+  // Friday, or "since December 1" in September, means the last one.
+  if (d > ref && start.isCertain("weekday") && !start.isCertain("day")) d.setDate(d.getDate() - 7);
+  else if (d > ref && !start.isCertain("year")) d.setFullYear(d.getFullYear() - 1);
+  return stamp(d);
+}
+
+/**
  * A due date as the model should relay it: local time first (a bare UTC
  * stamp gets repeated to the user as if it were local), then the exact
  * value, then the words it came from.

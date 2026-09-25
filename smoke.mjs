@@ -117,6 +117,18 @@ try {
   await tool("list_tasks (include_completed)", "list_tasks", { include_completed: true },
     { includes: ["[x] #1", "Done today: 1"] });
   await tool("list_done", "list_done", {}, { includes: ["#1 Try the smoke test"] });
+  await tool("sticky_search finds a task by a word in it", "sticky_search", { query: "dentist" },
+    { includes: ["1 task matching", "#2 Call the dentist", "added"] });
+  await tool("sticky_search matches word prefixes, done tasks too", "sticky_search",
+    { query: "smok", status: "done" }, { includes: ["[x] #1 Try the smoke test"] });
+  await tool("sticky_search leaves out done tasks when asked for open ones", "sticky_search",
+    { query: "smoke", status: "open" }, { includes: ["No tasks matching"] });
+  await tool("sticky_search survives punctuation and quotes", "sticky_search",
+    { query: 'Design: "review"!' }, { includes: ["#3 Design review"] });
+  await tool("sticky_search since tomorrow finds nothing added today", "sticky_search",
+    { since: "tomorrow" }, { includes: ["No tasks added since tomorrow"] });
+  await tool("sticky_search rejects a since that isn't a date", "sticky_search",
+    { since: "whenever" }, { error: true });
 } finally {
   child.kill();
   rmSync(home, { recursive: true, force: true });
