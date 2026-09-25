@@ -179,6 +179,8 @@ Three ready-made prompts, for day-one value without writing any: they appear whe
 | `overdue` | Each overdue task with when you added it and what you said: do it now, reschedule it, or drop it. |
 | `weekly_closeout` | The week's done, added, slipped and due-next tasks, and an action list for next week. |
 
+To have them run by themselves, every weekday morning say, see [Running StickyInc on a schedule](./docs/routines.md): recipes for Claude Desktop, launchd and cron.
+
 ### Routines
 
 Save your own prompts as routines: ask Claude something like *"save a routine called waiting on others that asks what I'm waiting on from people, for Fridays at 3pm"*. Each routine appears next to the built-in prompts under its name, and can be exported as JSON to share (`sticky_routine_list` with `format: json`) and imported from someone else's (`sticky_routine_import`). Two examples to start from are in [`routines/`](./routines).
