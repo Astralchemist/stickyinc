@@ -603,6 +603,10 @@ async function bootstrap(): Promise<void> {
   setInterval(() => { void checkDueCrossings(); }, DUE_POLL_MS);
   void checkReminders();
   setInterval(() => { void checkReminders(); }, REMINDER_POLL_MS);
+  // Apple Reminders, if turned on in Settings (a no-op otherwise).
+  const syncReminders = () => invoke("sync_reminders").catch((err) => console.error("Reminders sync:", err));
+  void syncReminders();
+  setInterval(() => { void syncReminders(); }, REMINDER_POLL_MS);
 
   // Background update check — 15s after launch so it doesn't fight the
   // setup bulge for screen real estate. Silent on network errors / 404

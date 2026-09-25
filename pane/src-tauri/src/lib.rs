@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 mod passive;
+mod reminders_sync;
 mod wizard;
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -14,8 +15,8 @@ use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 use crate::wizard::{
     open_wizard, open_wizard_window, setup_is_complete, wizard_close,
     wizard_detect_subscriptions, wizard_diff_claude_json, wizard_list_openrouter_models,
-    wizard_mark_complete, wizard_read_llm_config, wizard_read_watcher_enabled, wizard_register_mcp,
-    wizard_save_llm_config,
+    wizard_mark_complete, wizard_read_llm_config, wizard_read_reminders_sync,
+    wizard_read_watcher_enabled, wizard_register_mcp, wizard_save_llm_config, wizard_set_reminders_sync,
     wizard_set_watcher_enabled, wizard_validate_llm_key,
 };
 
@@ -132,6 +133,16 @@ fn open_db(path: &PathBuf) -> rusqlite::Result<Connection> {
             lamport INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_uuid);
+
+        -- A task's copy in another app (reminders_sync.rs): its id there and
+        -- what it was last sent, so syncs never duplicate and only send changes.
+        CREATE TABLE IF NOT EXISTS task_external (
+            task_uuid TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            external_id TEXT NOT NULL,
+            sent TEXT NOT NULL,
+            PRIMARY KEY (task_uuid, provider)
+        );
         CREATE INDEX IF NOT EXISTS idx_task_events_lamport ON task_events(device_id, lamport);
         "#,
     )?;
@@ -650,6 +661,9 @@ pub fn run() {
             wizard_register_mcp,
             wizard_read_llm_config,
             wizard_read_watcher_enabled,
+            wizard_read_reminders_sync,
+            wizard_set_reminders_sync,
+            reminders_sync::sync_reminders,
             wizard_save_llm_config,
             wizard_validate_llm_key,
             wizard_set_watcher_enabled,

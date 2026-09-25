@@ -622,6 +622,30 @@ pub fn wizard_set_watcher_enabled(app: tauri::AppHandle, enabled: bool) -> Resul
 }
 
 /// Whether the user turned on passive extraction in setup.
+/// Whether open tasks go to Apple Reminders (reminders_sync.rs). Off by
+/// default: it creates a list in the user's Reminders.
+pub fn reminders_sync_enabled() -> bool {
+    read_json(&setup_sentinel_path())
+        .get("reminders_sync")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn wizard_read_reminders_sync() -> bool {
+    reminders_sync_enabled()
+}
+
+#[tauri::command]
+pub fn wizard_set_reminders_sync(enabled: bool) -> Result<(), String> {
+    let mut cfg = read_json(&setup_sentinel_path());
+    if !cfg.is_object() {
+        cfg = serde_json::json!({});
+    }
+    cfg["reminders_sync"] = serde_json::Value::Bool(enabled);
+    write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())
+}
+
 /// For the settings screen: whether passive extraction is on.
 #[tauri::command]
 pub fn wizard_read_watcher_enabled() -> bool {

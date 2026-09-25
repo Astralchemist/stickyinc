@@ -108,6 +108,41 @@ const PROVIDER_NAMES: Record<Provider, string> = {
   local: "A local model",
 };
 
+interface SyncReport {
+  created: number;
+  updated: number;
+  completed: number;
+  failed: string[];
+}
+
+const IS_MAC = navigator.userAgent.includes("Mac");
+
+/** The Apple Reminders row (macOS only): whether it's on, and a button to flip it. */
+async function showRemindersSetting(note?: string): Promise<void> {
+  $("#settings-reminders-row").hidden = !IS_MAC;
+  if (!IS_MAC) return;
+  const on = await invoke<boolean>("wizard_read_reminders_sync").catch(() => false);
+  $("#settings-reminders").textContent =
+    note ?? (on ? "On: open tasks go to a StickyInc list in Reminders" : "Off");
+  $("#settings-reminders-toggle").textContent = on ? "Turn off" : "Turn on";
+}
+
+/** Turning it on syncs straight away, so the permission prompt and any problem show here. */
+async function toggleReminders(): Promise<void> {
+  const on = await invoke<boolean>("wizard_read_reminders_sync").catch(() => false);
+  await invoke("wizard_set_reminders_sync", { enabled: !on });
+  if (on) return showRemindersSetting();
+  $("#settings-reminders").textContent = "Sending your open tasks to Reminders…";
+  try {
+    const r = await invoke<SyncReport>("sync_reminders");
+    const failed = r.failed.length ? ` ${r.failed.length} couldn't be sent: ${r.failed[0]}` : "";
+    await showRemindersSetting(`On: ${r.created} task${r.created === 1 ? "" : "s"} added to a StickyInc list in Reminders.${failed}`);
+  } catch (err) {
+    await invoke("wizard_set_reminders_sync", { enabled: false });
+    await showRemindersSetting(`Couldn't turn it on. ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** Fill in the settings overview from what's saved now. */
 async function loadSettings(): Promise<void> {
   const llm = await invoke<LLMConfig | null>("wizard_read_llm_config").catch(() => null);
@@ -125,6 +160,8 @@ async function loadSettings(): Promise<void> {
   } catch (err) {
     claude.textContent = err instanceof Error ? err.message : String(err);
   }
+
+  await showRemindersSetting();
 
   const calendar = await invoke<string>("calendar_file_path").catch(() => "");
   state.calendarUrl = calendar ? `file://${calendar.startsWith("/") ? "" : "/"}${calendar.replace(/\\/g, "/")}` : "";
@@ -462,6 +499,7 @@ function bind(): void {
     el.addEventListener("click", () => goto(el.dataset.settingsGo as StepName));
   });
   $("#settings-done").addEventListener("click", () => void invoke("wizard_close"));
+  $("#settings-reminders-toggle").addEventListener("click", () => void toggleReminders());
   $("#settings-copy-calendar").addEventListener("click", async (e) => {
     const button = e.currentTarget as HTMLButtonElement;
     try {
