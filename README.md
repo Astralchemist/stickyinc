@@ -179,6 +179,17 @@ Three ready-made prompts, for day-one value without writing any: they appear whe
 | `overdue` | Each overdue task with when you added it and what you said: do it now, reschedule it, or drop it. |
 | `weekly_closeout` | The week's done, added, slipped and due-next tasks, and an action list for next week. |
 
+### Routines
+
+Save your own prompts as routines: ask Claude something like *"save a routine called waiting on others that asks what I'm waiting on from people, for Fridays at 3pm"*. Each routine appears next to the built-in prompts under its name, and can be exported as JSON to share (`sticky_routine_list` with `format: json`) and imported from someone else's (`sticky_routine_import`). Two examples to start from are in [`routines/`](./routines).
+
+| Tool | What it does |
+|---|---|
+| `sticky_routine_list` | List your routines, or export them as JSON. |
+| `sticky_routine_save` | Add a routine (a name, the prompt, and when it's meant to run), or replace one with the same name. |
+| `sticky_routine_delete` | Delete a routine. |
+| `sticky_routine_import` | Import routines from JSON; all or nothing. |
+
 ### Where a task came from
 
 Rest the pointer on a task in the pane to see where it came from: the words it came from, the app, and when, e.g. *"Remind me to call the dentist Friday afternoon…"* — Added from Claude Code · 2h ago. The tools that add tasks take an optional `context` with an `excerpt` (the user's words, kept to 200 characters) and a `ref` (a file, URL, or ticket), and the server records the app from the MCP handshake. Passive extraction stores the sentence it heard and a pointer to the transcript message. They're kept in `source_client`, `source_ref` and `source_excerpt`.

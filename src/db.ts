@@ -84,6 +84,15 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_uuid);
   CREATE INDEX IF NOT EXISTS idx_task_events_lamport ON task_events(device_id, lamport);
+
+  -- User-defined routines: a named prompt, and a hint of when to run it
+  -- (StickyInc doesn't run them itself; see docs/routines.md).
+  CREATE TABLE IF NOT EXISTS routines (
+    name TEXT PRIMARY KEY,
+    prompt TEXT NOT NULL,
+    schedule TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Phase 2: column-adding migrations. Idempotent; the column-existence check
@@ -405,6 +414,36 @@ export function searchTasks({
   return db
     .prepare(`SELECT t.* FROM main.tasks t ${filters} ORDER BY t.created_at DESC, t.id DESC LIMIT ?`)
     .all(...params, limit) as unknown as Task[];
+}
+
+export interface Routine {
+  name: string;
+  prompt: string;
+  /** When it's meant to run, in words ("weekdays at 8:30"); a hint, not a timer. */
+  schedule: string | null;
+  updated_at: string;
+}
+
+export function listRoutines(): Routine[] {
+  return db.prepare(`SELECT * FROM routines ORDER BY name`).all() as unknown as Routine[];
+}
+
+/** Add a routine, or replace the one with the same name. True if it was new. */
+export function saveRoutine(r: { name: string; prompt: string; schedule?: string | null }): boolean {
+  return inTransaction(() => {
+    const existed = db.prepare(`SELECT 1 FROM routines WHERE name = ?`).get(r.name) !== undefined;
+    db.prepare(
+      `INSERT INTO routines (name, prompt, schedule, updated_at) VALUES (?, ?, ?, datetime('now'))
+       ON CONFLICT (name) DO UPDATE SET prompt = excluded.prompt, schedule = excluded.schedule,
+         updated_at = excluded.updated_at`
+    ).run(r.name, r.prompt, r.schedule ?? null);
+    return !existed;
+  });
+}
+
+/** True if there was a routine by that name. */
+export function deleteRoutine(name: string): boolean {
+  return Number(db.prepare(`DELETE FROM routines WHERE name = ?`).run(name).changes) > 0;
 }
 
 export { DB_PATH, DEVICE_ID };

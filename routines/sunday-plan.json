@@ -1,0 +1,5 @@
+{
+  "name": "sunday_plan",
+  "prompt": "Help me plan the week ahead. Look at my open StickyInc tasks: what's due this week, what's overdue, and what's been sitting undated the longest. Suggest which three things would make the week a success, which day to do each, and one thing I should drop or delegate.",
+  "schedule": "Sundays at 7pm"
+}

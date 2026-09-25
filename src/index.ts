@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, type RegisteredPrompt } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { addTaskSchema, handleAddTask } from "./tools/add_task.js";
 import { addTaskNaturalSchema, handleAddTaskNatural } from "./tools/add_task_natural.js";
@@ -9,8 +9,19 @@ import { scheduleEventSchema, handleScheduleEvent } from "./tools/schedule_event
 import { listDoneSchema, handleListDone } from "./tools/list_done.js";
 import { stickySearchSchema, handleStickySearch } from "./tools/sticky_search.js";
 import { clientLabel } from "./provenance.js";
-import { searchTasks } from "./db.js";
+import { listRoutines, searchTasks } from "./db.js";
 import { morningReview, overdueReview, weeklyCloseout } from "./prompts.js";
+import { routinePromptText } from "./routines.js";
+import {
+  handleRoutineDelete,
+  handleRoutineImport,
+  handleRoutineList,
+  handleRoutineSave,
+  routineDeleteSchema,
+  routineImportSchema,
+  routineListSchema,
+  routineSaveSchema,
+} from "./tools/routines.js";
 
 const server = new McpServer({
   name: "stickyinc",
@@ -136,6 +147,87 @@ server.registerPrompt(
     return asPrompt(weeklyCloseout(openTasks(), done));
   }
 );
+
+// User routines (src/routines.ts), each also offered as a prompt under its
+// name. Synced after this server's own changes, and every 30 s for routines
+// saved through another client's StickyInc.
+const routinePrompts = new Map<string, RegisteredPrompt>();
+const describeRoutine = (prompt: string, schedule: string | null) =>
+  `Your routine${schedule ? ` (${schedule})` : ""}: ${prompt.replace(/\s+/g, " ").slice(0, 120)}`;
+
+function syncRoutinePrompts(): void {
+  const routines = listRoutines();
+  const names = new Set(routines.map((r) => r.name));
+  for (const [name, registered] of routinePrompts) {
+    if (!names.has(name)) {
+      registered.remove();
+      routinePrompts.delete(name);
+    }
+  }
+  for (const r of routines) {
+    const description = describeRoutine(r.prompt, r.schedule);
+    const registered = routinePrompts.get(r.name);
+    if (!registered) {
+      // The callback reads the routine when it runs, so edits apply at once.
+      routinePrompts.set(
+        r.name,
+        server.registerPrompt(r.name, { title: r.name.replace(/_/g, " "), description }, () => {
+          const current = listRoutines().find((x) => x.name === r.name) ?? r;
+          return asPrompt(routinePromptText(current));
+        })
+      );
+    } else if (registered.description !== description) {
+      registered.update({ description });
+    }
+  }
+}
+
+server.registerTool(
+  "sticky_routine_list",
+  {
+    title: "List Routines",
+    description:
+      "List the user's StickyInc routines (saved prompts they run on a schedule or by hand), or export them as JSON.",
+    inputSchema: routineListSchema,
+  },
+  handleRoutineList
+);
+
+server.registerTool(
+  "sticky_routine_save",
+  {
+    title: "Save Routine",
+    description:
+      "Save a routine: a named prompt the user wants to run regularly, like a Friday check on what they're " +
+      "waiting on from others. Replaces one with the same name. It shows up as a prompt they can run.",
+    inputSchema: routineSaveSchema,
+  },
+  (args) => handleRoutineSave(args, syncRoutinePrompts)
+);
+
+server.registerTool(
+  "sticky_routine_delete",
+  {
+    title: "Delete Routine",
+    description: "Delete one of the user's StickyInc routines by name.",
+    inputSchema: routineDeleteSchema,
+  },
+  (args) => handleRoutineDelete(args, syncRoutinePrompts)
+);
+
+server.registerTool(
+  "sticky_routine_import",
+  {
+    title: "Import Routines",
+    description:
+      "Import routines from JSON (one routine or an array, as sticky_routine_list exports), e.g. ones someone shared.",
+    inputSchema: routineImportSchema,
+  },
+  (args) => handleRoutineImport(args, syncRoutinePrompts)
+);
+
+syncRoutinePrompts();
+setInterval(syncRoutinePrompts, 30_000).unref();
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

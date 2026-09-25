@@ -1,0 +1,5 @@
+{
+  "name": "waiting_on_others",
+  "prompt": "What am I waiting on from other people, and what did I promise someone else? Look through my open StickyInc tasks for anything that depends on or was promised to another person. For each, say who, since when, and whether it's time to chase or deliver. End with who to message today and a one-line draft for each.",
+  "schedule": "Fridays at 3pm"
+}

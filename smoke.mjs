@@ -133,11 +133,11 @@ try {
   const listed = (await send("prompts/list", {})).result?.prompts?.map((p) => p.name).sort() ?? [];
   check("prompts/list offers the canned prompts",
     listed.join(",") === "morning_review,overdue,weekly_closeout", listed.join(", "));
-  /** Get a prompt and check its message has the right tasks and ends asking for an action list. */
-  async function prompt(label, name, includes) {
+  /** Get a prompt and check its message; the built-in ones also end asking for an action list. */
+  async function prompt(label, name, includes, { actionList = true } = {}) {
     const resp = await send("prompts/get", { name });
     const text = resp.result?.messages?.[0]?.content?.text ?? JSON.stringify(resp.error);
-    const missing = [...includes, "**Action list**"].filter((s) => !text.includes(s));
+    const missing = [...includes, ...(actionList ? ["**Action list**"] : [])].filter((s) => !text.includes(s));
     check(label, missing.length === 0, missing.length ? `missing ${missing.join(" | ")}\n${text}` : text.split("\n")[0]);
   }
   await prompt("morning_review sorts the list", "morning_review",
@@ -145,6 +145,32 @@ try {
   await prompt("overdue lists what's past due", "overdue", ["## Overdue (1)", "#3 Design review"]);
   await prompt("weekly_closeout includes the week's done tasks", "weekly_closeout",
     ["## Done in the last 7 days (1)", "[x] #1 Try the smoke test", "## Added this week and still open (3)"]);
+
+  // Routines: saved prompts, each also offered as an MCP prompt under its name.
+  await tool("sticky_routine_save adds a routine", "sticky_routine_save",
+    { name: "Waiting on others", prompt: "What am I waiting on from other people?", schedule: "Fridays at 3pm" },
+    { includes: ['Saved routine "waiting_on_others"', "/mcp__stickyinc__waiting_on_others"] });
+  await tool("sticky_routine_save refuses a built-in prompt's name", "sticky_routine_save",
+    { name: "Morning review", prompt: "x" }, { error: true, includes: ["built-in"] });
+  const promptNames = async () => (await send("prompts/list", {})).result?.prompts?.map((p) => p.name) ?? [];
+  const afterSave = await promptNames();
+  check("a saved routine is offered as a prompt", afterSave.includes("waiting_on_others"), afterSave.join(", "));
+  await prompt("the routine's prompt is its text", "waiting_on_others",
+    ["What am I waiting on from other people?", 'routine "waiting_on_others"', "sticky_search"], { actionList: false });
+  await tool("sticky_routine_list exports JSON", "sticky_routine_list", { format: "json" },
+    { includes: ['"name": "waiting_on_others"', '"schedule": "Fridays at 3pm"'] });
+  await tool("sticky_routine_import takes the repo's example", "sticky_routine_import",
+    { json: readFileSync(join(import.meta.dirname, "routines", "sunday-plan.json"), "utf8") },
+    { includes: ["Imported sunday_plan (1 new)"] });
+  await tool("sticky_routine_import rejects a bad file whole", "sticky_routine_import",
+    { json: '[{"name":"ok","prompt":"x"},{"name":"broken"}]' }, { error: true, includes: ["Nothing imported"] });
+  await tool("sticky_routine_list lists them", "sticky_routine_list", {},
+    { includes: ["2 routines", "sunday_plan (Sundays at 7pm)", "waiting_on_others (Fridays at 3pm)"] });
+  await tool("sticky_routine_delete removes one", "sticky_routine_delete", { name: "waiting on others" },
+    { includes: ['Deleted routine "waiting_on_others"'] });
+  const afterDelete = await promptNames();
+  check("a deleted routine's prompt goes away", !afterDelete.includes("waiting_on_others") && afterDelete.includes("sunday_plan"),
+    afterDelete.join(", "));
 } finally {
   child.kill();
   rmSync(home, { recursive: true, force: true });
