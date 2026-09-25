@@ -4,8 +4,8 @@
   "version": "0.5.2",
   "identifier": "app.stickyinc.pane",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm -C .. exec tsc && pnpm build",
+    "beforeDevCommand": "pnpm -C .. run bundle && pnpm dev",
+    "beforeBuildCommand": "pnpm -C .. run bundle && pnpm build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -40,7 +40,9 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": false,
-    "resources": ["../../dist/**/*"],
+    "resources": {
+      "../../dist/bundle/stickyinc-mcp.mjs": "mcp/stickyinc-mcp.mjs"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

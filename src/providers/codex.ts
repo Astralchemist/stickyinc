@@ -47,9 +47,12 @@ export class CodexProvider implements LLMProvider {
     const tmpDir = mkdtempSync(join(tmpdir(), "stickyinc-codex-"));
     const outFile = join(tmpDir, "last.txt");
 
+    // Explicit read-only sandbox: `codex exec` is a full agent and the prompt
+    // carries untrusted transcript text; don't inherit a looser config.toml.
     const args = [
       "exec",
       "--skip-git-repo-check",
+      "--sandbox", "read-only",
       "--output-last-message",
       outFile,
     ];

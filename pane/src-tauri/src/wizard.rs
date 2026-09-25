@@ -33,15 +33,58 @@ fn read_json(path: &PathBuf) -> serde_json::Value {
     }
 }
 
+/// Read `~/.claude.json` for a read-modify-write. Unlike `read_json`, anything
+/// other than "file doesn't exist" is an error: that file is Claude Code's
+/// whole config, and treating an unreadable or half-written copy as `{}`
+/// would overwrite it with just our entry.
+fn read_claude_config(path: &PathBuf) -> Result<serde_json::Value, String> {
+    let raw = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(serde_json::json!({})),
+        Err(e) => return Err(format!("Couldn't read {}: {}", path.display(), e)),
+    };
+    let cfg: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
+        format!(
+            "{} isn't valid JSON ({}). Leaving it untouched — if Claude Code is running, \
+             try again in a moment.",
+            path.display(),
+            e
+        )
+    })?;
+    if !cfg.is_object() {
+        return Err(format!("{} isn't a JSON object; leaving it untouched.", path.display()));
+    }
+    Ok(cfg)
+}
+
+/// Write JSON with 0600 permissions, atomically: render to a temp file beside
+/// the target, then rename over it, so other readers (Claude Code for
+/// `~/.claude.json`) never see a truncated file and secrets are never briefly
+/// world-readable. Symlinks are followed so dotfile-managed configs stay linked.
 fn write_json_secure(path: &PathBuf, value: &serde_json::Value) -> std::io::Result<()> {
+    use std::io::Write;
+
     let rendered = serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string());
-    fs::write(path, rendered)?;
+    let target = fs::canonicalize(path).unwrap_or_else(|_| path.clone());
+    let mut tmp = target.clone().into_os_string();
+    tmp.push(".stickyinc-tmp");
+    let tmp = PathBuf::from(tmp);
+    let _ = fs::remove_file(&tmp);
+
+    let mut opts = fs::OpenOptions::new();
+    opts.write(true).create_new(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)?.permissions();
-        perms.set_mode(0o600);
-        let _ = fs::set_permissions(path, perms);
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let written = opts.open(&tmp).and_then(|mut f| {
+        f.write_all(rendered.as_bytes())?;
+        f.sync_all()
+    });
+    if let Err(e) = written.and_then(|_| fs::rename(&tmp, &target)) {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
     }
     Ok(())
 }
@@ -228,38 +271,60 @@ pub async fn wizard_detect_subscriptions() -> SubscriptionDetection {
     }
 }
 
+const NODE_REQUIRED: &str =
+    "Node.js 22.13+ required — install from https://nodejs.org and re-run setup.";
+
+/// `node --version` as (major, minor), or None if it can't be run or parsed.
+fn node_version(node: &str) -> Option<(u32, u32)> {
+    let out = std::process::Command::new(node)
+        .arg("--version")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    let v = String::from_utf8_lossy(&out.stdout);
+    let mut parts = v.trim().trim_start_matches('v').split('.');
+    Some((parts.next()?.parse().ok()?, parts.next()?.parse().ok()?))
+}
+
+/// The bundled server uses `node:sqlite`, available without a flag from
+/// Node 22.13 and 23.4.
+fn node_has_sqlite((major, minor): (u32, u32)) -> bool {
+    match major {
+        22 => minor >= 13,
+        23 => minor >= 4,
+        m => m >= 24,
+    }
+}
+
 /// Resolve the MCP server command we'll register in `~/.claude.json`.
 ///
-/// Production builds bundle the Node MCP entry as a Tauri resource (configured
-/// in tauri.conf.json under `bundle.resources`); we resolve that path through
-/// the AppHandle. Dev builds fall back to `~/stickyinc/dist/index.js`, which
-/// is the path users running from a clone already have.
+/// The server ships inside the app as one self-contained file
+/// (`pnpm bundle` → `mcp/stickyinc-mcp.mjs`, mapped in tauri.conf.json under
+/// `bundle.resources`); `tauri dev` copies it next to the debug binary too.
 ///
-/// Errors out if `node` itself isn't installed — registering the entry would
-/// silently fail at runtime otherwise, which is the v0.5.1 "subscription mode
-/// doesn't work" bug.
+/// Errors out if the bundle is missing or `node` is absent or too old —
+/// registering the entry would silently fail at runtime otherwise, which is
+/// the v0.5.1 "subscription mode doesn't work" bug.
 fn mcp_default_command(app: &tauri::AppHandle) -> Result<(String, Vec<String>), String> {
-    let node = resolve_binary("node").ok_or_else(|| {
-        "Node.js 20+ required — install from https://nodejs.org and re-run setup.".to_string()
-    })?;
-
-    let bundled = app
-        .path()
-        .resolve("dist/index.js", BaseDirectory::Resource)
-        .ok()
-        .filter(|p| p.exists());
-    let mcp_path = match bundled {
-        Some(p) => p.to_string_lossy().to_string(),
-        None => {
-            let home = dirs::home_dir().unwrap_or_default();
-            home.join("stickyinc")
-                .join("dist")
-                .join("index.js")
-                .to_string_lossy()
-                .to_string()
+    let node = resolve_binary("node").ok_or_else(|| NODE_REQUIRED.to_string())?;
+    match node_version(&node) {
+        Some(v) if node_has_sqlite(v) => {}
+        Some((major, minor)) => {
+            return Err(format!("{} (found v{}.{} at {})", NODE_REQUIRED, major, minor, node))
         }
-    };
-    Ok((node, vec![mcp_path]))
+        None => return Err(format!("{} (couldn't run {} --version)", NODE_REQUIRED, node)),
+    }
+
+    let mcp_path = app
+        .path()
+        .resolve("mcp/stickyinc-mcp.mjs", BaseDirectory::Resource)
+        .ok()
+        .filter(|p| p.exists())
+        .ok_or_else(|| {
+            "StickyInc's bundled MCP server is missing from this install — reinstall the app."
+                .to_string()
+        })?;
+    Ok((node, vec![mcp_path.to_string_lossy().to_string()]))
 }
 
 fn mcp_proposed_entry(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -310,7 +375,7 @@ fn html_escape(s: &str) -> String {
 pub fn wizard_diff_claude_json(app: tauri::AppHandle) -> Result<ClaudeDiff, String> {
     let path = claude_config_path();
     let proposed = mcp_proposed_entry(&app)?;
-    let cfg = read_json(&path);
+    let cfg = read_claude_config(&path)?;
     let existing = cfg
         .get("mcpServers")
         .and_then(|m| m.get("stickyinc"))
@@ -337,18 +402,13 @@ pub fn wizard_register_mcp(app: tauri::AppHandle, resolution: String) -> Result<
     }
     let proposed = mcp_proposed_entry(&app)?;
     let path = claude_config_path();
-    let mut cfg = read_json(&path);
-    if !cfg.is_object() {
-        cfg = serde_json::json!({});
-    }
+    let mut cfg = read_claude_config(&path)?;
     let root = cfg.as_object_mut().ok_or("~/.claude.json is not an object")?;
     let servers = root
         .entry("mcpServers".to_string())
-        .or_insert(serde_json::json!({}));
-    if !servers.is_object() {
-        *servers = serde_json::json!({});
-    }
-    let servers = servers.as_object_mut().unwrap();
+        .or_insert(serde_json::json!({}))
+        .as_object_mut()
+        .ok_or("\"mcpServers\" in ~/.claude.json isn't an object; leaving it untouched.")?;
     servers.insert("stickyinc".to_string(), proposed);
     write_json_secure(&path, &cfg).map_err(|e| e.to_string())
 }

@@ -1,4 +1,13 @@
-import { existsSync, readFileSync, writeFileSync, statSync, readdirSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { addTaskUnique } from "./db.js";
@@ -22,6 +31,23 @@ function loadState(): WatcherState {
 
 function saveState(s: WatcherState): void {
   writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
+}
+
+/** Read bytes [start, end) of a file without loading the rest of it. */
+function readBytes(file: string, start: number, end: number): Buffer {
+  const buf = Buffer.alloc(end - start);
+  const fd = openSync(file, "r");
+  try {
+    let read = 0;
+    while (read < buf.length) {
+      const n = readSync(fd, buf, read, buf.length - read, start + read);
+      if (n === 0) break;
+      read += n;
+    }
+    return buf.subarray(0, read);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function listJsonlFiles(): string[] {
@@ -204,9 +230,14 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
       if (st.size < prev.size) prev.size = 0;
       if (st.size === prev.size) continue;
 
-      const content = readFileSync(file, "utf8");
-      const slice = content.slice(prev.size);
-      prev.size = st.size;
+      // `size` is a byte offset, so read bytes — slicing decoded text by it
+      // skips content once the file has any multi-byte UTF-8. Stop at the
+      // last newline so a line still being written is read whole next tick.
+      const chunk = readBytes(file, prev.size, st.size);
+      const end = chunk.lastIndexOf(0x0a) + 1;
+      if (end === 0) continue;
+      const slice = chunk.subarray(0, end).toString("utf8");
+      prev.size += end;
       prev.mtime = st.mtimeMs;
       state.files[file] = prev;
 
