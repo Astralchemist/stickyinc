@@ -261,13 +261,12 @@ fn ensure_device_id(conn: &Connection) -> rusqlite::Result<String> {
 /// independent across devices — that's all we need for deterministic
 /// replay ordering when merging event streams later.
 fn next_lamport(conn: &Connection, device_id: &str) -> rusqlite::Result<i64> {
-    let current: Option<i64> = conn
-        .query_row(
-            "SELECT MAX(lamport) FROM task_events WHERE device_id = ?",
-            [device_id],
-            |row| row.get(0),
-        )
-        .optional()?;
+    // MAX over no rows is one row holding NULL, not zero rows.
+    let current: Option<i64> = conn.query_row(
+        "SELECT MAX(lamport) FROM task_events WHERE device_id = ?",
+        [device_id],
+        |row| row.get(0),
+    )?;
     Ok(current.unwrap_or(0) + 1)
 }
 
@@ -776,6 +775,15 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "BEGIN:VCALENDAR");
         assert!(!path.with_extension("tmp").exists(), "no temp file left behind");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn first_event_on_a_device_is_lamport_one() {
+        let path = std::env::temp_dir().join(format!("stickyinc-test-{}.db", uuid::Uuid::new_v4()));
+        let conn = open_db(&path).unwrap();
+        assert_eq!(next_lamport(&conn, "fresh-device").unwrap(), 1);
+        drop(conn);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
