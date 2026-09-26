@@ -33,6 +33,11 @@ const PANE_H_FRAC = 1.0;
 const BULGE_HOLD_MS = 3500;
 const BULGE_COOLDOWN_MS = 30_000;
 const DUE_POLL_MS = 30_000;
+/** Writes arrive as tasks-changed within ~150 ms; this only catches changes
+ *  the clock makes, like a task turning overdue. */
+const CLOCK_REFRESH_MS = 30_000;
+/** How long a ticked-off row stays struck through before the list redraws. */
+const STRIKE_MS = 450;
 const REMINDER_POLL_MS = 60_000;
 /** Reminder keys already sent (see reminders.ts), kept across restarts. */
 const REMINDERS_SENT_KEY = "stickyinc.remindersSent";
@@ -252,9 +257,12 @@ const INTENT_LABELS: Record<string, string> = { read: "Read", reply: "Reply", re
 async function completeFrom(li: HTMLElement, task: Task): Promise<void> {
   hideProvenance();
   li.classList.add("done");
+  // The commit comes back as tasks-changed straight away; let the row
+  // finish striking through first.
+  refreshHoldUntil = Date.now() + STRIKE_MS;
   try {
     await invoke("complete_task", { id: task.id });
-    setTimeout(() => refresh(), 450);
+    requestRefresh();
   } catch (err) {
     li.classList.remove("done");
     console.error(err);
@@ -541,6 +549,16 @@ async function writeCalendar(open: Task[]): Promise<void> {
   }
 }
 
+/** Until when a requested refresh waits (see completeFrom). */
+let refreshHoldUntil = 0;
+let refreshTimer: number | undefined;
+
+/** Refresh soon: once any strike-through is done, and once per burst of changes. */
+function requestRefresh(): void {
+  window.clearTimeout(refreshTimer);
+  refreshTimer = window.setTimeout(() => void refresh(), Math.max(0, refreshHoldUntil - Date.now()));
+}
+
 async function refresh(): Promise<void> {
   try {
     const [open, recent, archived] = await Promise.all([
@@ -681,7 +699,7 @@ async function bootstrap(): Promise<void> {
 
   await refresh();
 
-  await listen("tasks-changed", () => refresh());
+  await listen("tasks-changed", requestRefresh);
   await listen("show-tour", startTour); // from Settings
   await listen("setup-complete", async () => {
     setupComplete = true;
@@ -693,7 +711,7 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  setInterval(refresh, 3000);
+  setInterval(requestRefresh, CLOCK_REFRESH_MS);
   setInterval(() => { void checkDueCrossings(); }, DUE_POLL_MS);
   void checkReminders();
   setInterval(() => { void checkReminders(); }, REMINDER_POLL_MS);

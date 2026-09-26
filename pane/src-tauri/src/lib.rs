@@ -7,7 +7,6 @@ mod passive;
 mod reminders_sync;
 mod wizard;
 
-use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -57,6 +56,43 @@ fn task_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
 }
 
 struct DbPath(PathBuf);
+
+/**
+ * Notices commits to the database from any other connection: the MCP
+ * server, the watcher, the clipper, or one of the pane's own commands (each
+ * opens its own). SQLite bumps `PRAGMA data_version` only for other
+ * connections' commits, so the pane's refresh, which only reads, can't set
+ * it off, and a check costs microseconds. A file watcher on tasks.db missed
+ * most writes, because in WAL mode they land in tasks.db-wal.
+ */
+struct ChangeWatch {
+    conn: Connection,
+    last: i64,
+}
+
+impl ChangeWatch {
+    /// How often the pane looks for changes: well under the time it takes
+    /// to glance at it, at a few microseconds a check.
+    const INTERVAL: Duration = Duration::from_millis(150);
+
+    fn new(path: &PathBuf) -> rusqlite::Result<Self> {
+        let conn = open_db(path)?;
+        let last = Self::version(&conn)?;
+        Ok(Self { conn, last })
+    }
+
+    fn version(conn: &Connection) -> rusqlite::Result<i64> {
+        conn.query_row("PRAGMA data_version", [], |r| r.get(0))
+    }
+
+    /// Whether anyone else has committed since the last call.
+    fn changed(&mut self) -> rusqlite::Result<bool> {
+        let now = Self::version(&self.conn)?;
+        let changed = now != self.last;
+        self.last = now;
+        Ok(changed)
+    }
+}
 
 fn db_path() -> PathBuf {
     let mut p = dirs::home_dir().expect("no home dir");
@@ -715,29 +751,25 @@ pub fn run() {
                 }
             });
 
+            // Refresh the pane within ChangeWatch::INTERVAL of any write.
             let handle = app.handle().clone();
             let watch_path = path.clone();
             std::thread::spawn(move || {
-                let (tx, rx) = std::sync::mpsc::channel::<notify::Result<Event>>();
-                let mut watcher: RecommendedWatcher = match notify::recommended_watcher(tx) {
+                let mut watch = match ChangeWatch::new(&watch_path) {
                     Ok(w) => w,
                     Err(e) => {
-                        eprintln!("watcher init failed: {e}");
+                        eprintln!("change watch: {e}");
                         return;
                     }
                 };
-                if let Err(e) = watcher.watch(&watch_path, RecursiveMode::NonRecursive) {
-                    eprintln!("watch failed: {e}");
-                    return;
-                }
                 loop {
-                    match rx.recv_timeout(Duration::from_secs(5)) {
-                        Ok(Ok(_event)) => {
+                    std::thread::sleep(ChangeWatch::INTERVAL);
+                    match watch.changed() {
+                        Ok(true) => {
                             let _ = handle.emit("tasks-changed", ());
                         }
-                        Ok(Err(e)) => eprintln!("watch event err: {e}"),
-                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
-                        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                        Ok(false) => {}
+                        Err(e) => eprintln!("change watch: {e}"),
                     }
                 }
             });
@@ -755,6 +787,30 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn change_watch_sees_other_connections_commits_not_reads() {
+        let dir = std::env::temp_dir().join(format!("stickyinc-change-watch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("tasks.db");
+        let mut watch = ChangeWatch::new(&path).unwrap();
+        assert!(!watch.changed().unwrap());
+
+        // The pane's refresh: a read on its own connection.
+        let reader = open_db(&path).unwrap();
+        reader.query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get::<_, i64>(0)).unwrap();
+        assert!(!watch.changed().unwrap(), "a read isn't a change");
+
+        // Claude adding a task, from another connection.
+        let writer = open_db(&path).unwrap();
+        writer
+            .execute("INSERT INTO tasks (uuid, text, created_at) VALUES ('u1', 'Call the dentist', datetime('now'))", [])
+            .unwrap();
+        assert!(watch.changed().unwrap(), "a commit elsewhere is a change");
+        assert!(!watch.changed().unwrap(), "and it's reported once");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     #[test]
     fn due_with_z_is_utc() {
