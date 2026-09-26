@@ -165,7 +165,7 @@ function excerptFor(message: string, quote: string | null): string | null {
   return cap(message, EXCERPT_MAX);
 }
 
-async function extract(
+export async function extract(
   provider: LLMProvider,
   speaker: string,
   text: string,
