@@ -33,6 +33,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/mcp"
           cp dist/bundle/stickyinc-mcp.mjs "$RUNNER_TEMP/mcp/"
           node smoke.mjs "$RUNNER_TEMP/mcp/stickyinc-mcp.mjs"
+      - name: Latency budget
+        run: node scripts/bench.mjs "$RUNNER_TEMP/mcp/stickyinc-mcp.mjs"
 
   build-pane:
     name: Pane (${{ matrix.os }})
