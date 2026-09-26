@@ -1,11 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-// Built-in driver (Node 22.13+), not better-sqlite3: the pane ships this
-// server as a single bundled file run by the user's own `node`, and a native
-// addon can't be bundled or matched to an unknown Node ABI.
-import { DatabaseSync } from "node:sqlite";
 import type { Due } from "./dates.js";
 import type { Provenance } from "./provenance.js";
 import { ftsQuery, likeAnywhere, searchWords, toSqliteUtc } from "./search.js";
@@ -21,6 +18,28 @@ function dbPath(): string {
   if (!override) return join(homedir(), ".stickyinc", "tasks.db");
   return resolve(override.replace(/^~(?=$|[\\/])/, homedir()));
 }
+
+/**
+ * The built-in driver (Node 22.13+ / 23.4+), not better-sqlite3: the pane
+ * ships this server as a single bundled file run by the user's own `node`,
+ * and a native addon can't be bundled or matched to an unknown Node ABI.
+ * Required at run time rather than imported, because a static import of a
+ * missing builtin fails while modules link — before anything could say that
+ * the fix is a newer Node.
+ */
+function loadSqlite(): typeof import("node:sqlite") {
+  try {
+    return createRequire(import.meta.url)("node:sqlite");
+  } catch {
+    console.error(
+      `StickyInc needs Node.js 22.13+ (or 23.4+) for its built-in SQLite, but this is Node ${process.version}. ` +
+        "Install a current Node from https://nodejs.org and restart your MCP client.",
+    );
+    process.exit(1);
+  }
+}
+
+const { DatabaseSync } = loadSqlite();
 
 const DB_PATH = dbPath();
 
