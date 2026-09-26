@@ -42,20 +42,77 @@ function toStoredDue(input: string): string | null {
  * it was said) in the user's local time. On top of chrono's reading, a day
  * with no time of day means 09:00, or the end of the day if that's today
  * and 09:00 has passed, so "today" isn't overdue the moment it's added.
+ * "End of day" means 17:00, and a bare "the 30th" the next 30th; chrono
+ * alone gets those wrong or can't read them.
  */
 export function resolveDue(phrase: string, ref: Date = new Date()): Due {
   const s = phrase.trim();
   const base = { phrase: s, ref: stamp(ref) };
   if (ISO_DATE.test(s)) return { ...base, at: toStoredDue(s) };
 
+  const d = endOf(s, ref) ?? fromChrono(s.replace(HOUR_TONIGHT, "at $1 tonight"), ref) ?? dayOfMonth(s, ref);
+  return { ...base, at: d && stamp(d) };
+}
+
+/** `hour` on `day`, or the end of today if that's today and already past. */
+function onDay(day: Date, hour: number, ref: Date): Date {
+  const d = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour);
+  if (d < ref && d.toDateString() === ref.toDateString()) d.setHours(23, 59);
+  return d;
+}
+
+function fromChrono(s: string, ref: Date): Date | null {
   const [result] = chrono.parse(s, ref, { forwardDate: true });
-  if (!result) return { ...base, at: null };
-  let d = result.start.date();
-  if (!result.start.isCertain("hour") && !PART_OF_DAY.test(result.text)) {
-    d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9);
-    if (d < ref && d.toDateString() === ref.toDateString()) d.setHours(23, 59);
+  if (!result) return null;
+  if (result.start.isCertain("hour") || PART_OF_DAY.test(result.text)) return result.start.date();
+  return onDay(result.start.date(), 9, ref);
+}
+
+/**
+ * "9 tonight": chrono reads only "tonight" (22:00). With "at" in front it
+ * takes the hour, as the evening one.
+ */
+const HOUR_TONIGHT = /(?<!\bat\s)\b(\d{1,2}(?::\d{2})?)\s+tonight\b/i;
+
+/**
+ * "End of day", "EOD", "close of business", "end of the week / month".
+ * chrono reads "end of the day" as "the day" and lands a day, a week or a
+ * month late, so these go first: 17:00 on the day (today, unless another
+ * day is named), on Friday (the next one, on a weekend), or on the month's
+ * last day.
+ */
+const END_OF = /\b(?:end\s+of\s+(?:the\s+)?(day|week|month)|eod|cob|close\s+of\s+business)\b/i;
+
+function endOf(s: string, ref: Date): Date | null {
+  const m = END_OF.exec(s);
+  if (!m) return null;
+  const unit = (m[1] ?? "day").toLowerCase();
+  let day = ref;
+  if (unit === "day") {
+    const [other] = chrono.parse(s.replace(m[0], " "), ref, { forwardDate: true });
+    if (other) day = other.start.date();
+  } else if (unit === "week") {
+    day = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() + ((5 - ref.getDay() + 7) % 7));
+  } else {
+    day = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
   }
-  return { ...base, at: stamp(d) };
+  return onDay(day, 17, ref);
+}
+
+/** "The 30th", "before the 3rd": the next such day of a month, which chrono doesn't read. */
+const ORDINAL_DAY = /\b(\d{1,2})(?:st|nd|rd|th)\b/i;
+
+function dayOfMonth(s: string, ref: Date): Date | null {
+  const m = ORDINAL_DAY.exec(s);
+  const n = m ? Number(m[1]) : 0;
+  if (n < 1 || n > 31) return null;
+  for (let ahead = 0; ahead < 12; ahead++) {
+    const d = new Date(ref.getFullYear(), ref.getMonth() + ahead, n);
+    if (d.getDate() !== n) continue; // no 31st that month
+    if (d < ref && d.toDateString() !== ref.toDateString()) continue; // already gone
+    return onDay(d, 9, ref);
+  }
+  return null;
 }
 
 /**

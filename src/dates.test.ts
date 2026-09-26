@@ -35,6 +35,34 @@ test("explicit times are kept, and roll forward once they've passed", () => {
   assert.equal(at("in 2 hours"), "2026-09-25T16:30:00Z");
 });
 
+test("end of day, week and month are 17:00 on that day", () => {
+  assert.equal(at("end of day"), "2026-09-25T21:00:00Z");
+  assert.equal(at("EOD"), "2026-09-25T21:00:00Z");
+  assert.equal(at("by close of business"), "2026-09-25T21:00:00Z");
+  assert.equal(at("by the end of the day"), "2026-09-25T21:00:00Z");
+  assert.equal(at("tomorrow end of day"), "2026-09-26T21:00:00Z");
+  assert.equal(at("end of the week"), "2026-09-25T21:00:00Z"); // it's Friday
+  assert.equal(at("end of week", new Date("2026-09-21T14:30:00Z")), "2026-09-25T21:00:00Z"); // from Monday
+  assert.equal(at("end of the week", new Date("2026-09-26T14:30:00Z")), "2026-10-02T21:00:00Z"); // from Saturday
+  assert.equal(at("end of the month"), "2026-09-30T21:00:00Z");
+  assert.equal(at("end of day", new Date("2026-09-25T22:00:00Z")), "2026-09-26T03:59:00Z"); // 18:00: end of today
+});
+
+test("a day of the month is the next one", () => {
+  assert.equal(at("the 30th"), "2026-09-30T13:00:00Z");
+  assert.equal(at("before the 3rd"), "2026-10-03T13:00:00Z");
+  assert.equal(at("by the 24th"), "2026-10-24T13:00:00Z"); // the 24th has gone
+  assert.equal(at("the 25th"), "2026-09-26T03:59:00Z"); // today, past 09:00
+  assert.equal(at("the 31st"), "2026-10-31T13:00:00Z"); // no 31st in September
+});
+
+test("an hour before tonight is in the evening", () => {
+  assert.equal(at("9 tonight"), "2026-09-26T01:00:00Z"); // 21:00 local
+  assert.equal(at("9:30 tonight"), "2026-09-26T01:30:00Z");
+  assert.equal(at("at 9 tonight"), "2026-09-26T01:00:00Z");
+  assert.equal(at("9pm tonight"), "2026-09-26T01:00:00Z");
+});
+
 test("part-of-day words keep their own time", () => {
   assert.equal(at("tonight"), "2026-09-26T02:00:00Z"); // 22:00 local
   assert.equal(at("tomorrow afternoon"), "2026-09-26T19:00:00Z"); // 15:00 local
@@ -52,7 +80,7 @@ test("ISO 8601 is read exactly", () => {
 });
 
 test("words that aren't a date give no date, but keep the phrase", () => {
-  for (const phrase of ["whenever", "next-ish week", "EOD"]) {
+  for (const phrase of ["whenever", "next-ish week", "someday"]) {
     assert.deepEqual(resolveDue(phrase, FRI_1030), {
       at: null,
       phrase,
@@ -79,8 +107,8 @@ test("describeDue leads with local time", () => {
     "due Sat, Sep 26, 09:00 EDT (2026-09-26T13:00:00Z)"
   );
   assert.equal(
-    describeDue(resolveDue("EOD", FRI_1030)),
-    `couldn't read "EOD" as a date, so no due date`
+    describeDue(resolveDue("someday", FRI_1030)),
+    `couldn't read "someday" as a date, so no due date`
   );
 });
 
