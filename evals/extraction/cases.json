@@ -60,6 +60,8 @@
     { "id": "a02", "category": "Claude's own actions", "speaker": "assistant", "message": "Let me check the logs first.", "expect": [] },
     { "id": "a03", "category": "Claude's own actions", "speaker": "assistant", "message": "Done — the migration ran cleanly. I've also updated the docs.", "expect": [] },
     { "id": "a04", "category": "Claude's own actions", "speaker": "assistant", "message": "Next I'll fix the typo on line 40 and re-run the build.", "expect": [] },
+    { "id": "a05", "category": "Claude hands you a task", "speaker": "assistant", "message": "That's fixed. One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.", "expect": [{ "match": ["token"] }] },
+    { "id": "a06", "category": "Claude hands you a task", "speaker": "assistant", "message": "The tests pass now. You might want to add a regression test for this at some point.", "expect": [] },
 
     { "id": "l01", "category": "long", "message": "We got back from Porto last night and honestly the trip was great, the food alone was worth it, and the weather held up the whole week even though the forecast said rain. The only annoying part was the airport, which took forever. Anyway, I need to cancel the hotel booking in Porto for the November trip before Thursday, since we're going to stay with friends instead. The rest of the week is pretty quiet.", "expect": [{ "match": ["hotel"], "due": { "on": "2026-09-24" } }] },
     { "id": "l02", "category": "long", "pad": 4200, "message": "That's the full deploy log. I need to file a bug report with Vercel about this tomorrow.", "expect": [{ "match": ["bug|vercel"], "due": { "on": "2026-09-22" } }] }

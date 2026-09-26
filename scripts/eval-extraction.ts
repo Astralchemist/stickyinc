@@ -9,6 +9,7 @@
 //   pnpm eval:extraction --provider claude-code [--model haiku]
 //   pnpm eval:extraction --save              # write evals/extraction/results/
 //   pnpm eval:extraction --only c0           # cases whose id starts with c0
+//   pnpm eval:extraction --runs 3            # each message 3 times; models vary
 //
 // Exits 1 if garbage is above --max-garbage (0.05) or found is below
 // --min-found (0.85).
@@ -25,6 +26,7 @@ const { values: flags } = parseArgs({
     only: { type: "string" },
     save: { type: "boolean", default: false },
     concurrency: { type: "string", default: "4" },
+    runs: { type: "string", default: "1" },
     "max-garbage": { type: "string", default: "0.05" },
     "min-found": { type: "string", default: "0.85" },
   },
@@ -92,6 +94,7 @@ function padding(chars: number): string {
 
 interface Result {
   id: string;
+  run: number;
   category: string;
   message: string;
   ms: number;
@@ -104,7 +107,7 @@ interface Result {
   dueWrong: string[];
 }
 
-async function run(c: Case): Promise<Result> {
+async function run(c: Case, n: number): Promise<Result> {
   const text = c.pad ? padding(c.pad) + c.message : c.message;
   const start = performance.now();
   let got: Commitment[] = [];
@@ -136,6 +139,7 @@ async function run(c: Case): Promise<Result> {
   }
   return {
     id: c.id,
+    run: n,
     category: c.category,
     message: c.message,
     ms,
@@ -155,14 +159,17 @@ async function run(c: Case): Promise<Result> {
   };
 }
 
-// A small pool: CLI providers take seconds per call.
-const results: Result[] = new Array(cases.length);
+// A small pool: CLI providers take seconds per call. Models don't answer
+// the same way every time, so --runs repeats every message.
+const runs = Math.max(1, Number(flags.runs));
+const jobs = Array.from({ length: runs }, (_, n) => cases.map((c) => ({ c, n }))).flat();
+const results: Result[] = new Array(jobs.length);
 let next = 0;
 await Promise.all(
   Array.from({ length: Math.max(1, Number(flags.concurrency)) }, async () => {
-    while (next < cases.length) {
+    while (next < jobs.length) {
       const i = next++;
-      results[i] = await run(cases[i]);
+      results[i] = await run(jobs[i].c, jobs[i].n);
       process.stderr.write(".");
     }
   }),
@@ -192,7 +199,7 @@ const metrics = {
   latencyP95Ms: Math.round(at(0.95)),
 };
 
-console.log(`\n${provider.name} · ${provider.model} · ${results.length} messages, ${expected} real tasks\n`);
+console.log(`\n${provider.name} · ${provider.model} · ${cases.length} messages, ${expected / runs} real tasks${runs > 1 ? `, ${runs} runs` : ""}\n`);
 console.log(`  garbage     ${pct(garbage, extracted).padStart(6)}   ${garbage} of ${extracted} tasks made shouldn't exist`);
 console.log(`  found       ${pct(found, expected).padStart(6)}   ${found} of ${expected} real tasks`);
 console.log(`  due dates   ${pct(dueChecked - dueWrong, dueChecked).padStart(6)}   ${dueChecked - dueWrong} of ${dueChecked} right`);
@@ -211,18 +218,25 @@ for (const category of [...new Set(results.map((r) => r.category))]) {
   );
 }
 
-const failures = results.filter((r) => r.error || r.missed.length || r.garbage.length || r.dueWrong.length);
-if (failures.length) {
+// Each problem once per message, with how many runs it happened in.
+const problems = new Map<string, Map<string, number>>();
+for (const r of results) {
+  const lines = r.error
+    ? ["call failed (see errors above)"]
+    : [...r.missed.map((m) => `missed: ${m}`), ...r.garbage.map((g) => `garbage: "${g}"`), ...r.dueWrong.map((d) => `due: ${d}`)];
+  for (const line of lines) {
+    const seen = problems.get(r.id) ?? new Map<string, number>();
+    seen.set(line, (seen.get(line) ?? 0) + 1);
+    problems.set(r.id, seen);
+  }
+}
+if (problems.size) {
   console.log("\n  what went wrong");
-  for (const r of failures) {
-    console.log(`  ${r.id}  ${r.message.replace(/\s+/g, " ").slice(0, 90)}`);
-    if (r.error) {
-      console.log("        call failed (see errors above)");
-      continue;
-    }
-    for (const m of r.missed) console.log(`        missed: ${m}`);
-    for (const g of r.garbage) console.log(`        garbage: "${g}"`);
-    for (const d of r.dueWrong) console.log(`        due: ${d}`);
+  for (const c of cases) {
+    const seen = problems.get(c.id);
+    if (!seen) continue;
+    console.log(`  ${c.id}  ${c.message.replace(/\s+/g, " ").slice(0, 90)}`);
+    for (const [line, n] of seen) console.log(`        ${line}${runs > 1 ? `  (${n} of ${runs} runs)` : ""}`);
   }
 }
 
@@ -231,7 +245,7 @@ else if (flags.save) {
   const dir = join(root, "results");
   mkdirSync(dir, { recursive: true });
   const out = join(dir, `${provider.name}--${provider.model.replace(/[^\w.-]+/g, "_")}.json`);
-  writeFileSync(out, JSON.stringify({ provider: provider.name, model: provider.model, ranAt: new Date().toISOString(), said: file.said, metrics, results }, null, 2) + "\n");
+  writeFileSync(out, JSON.stringify({ provider: provider.name, model: provider.model, ranAt: new Date().toISOString(), said: file.said, runs, metrics, results }, null, 2) + "\n");
   console.log(`\n  saved ${out}`);
 }
 
