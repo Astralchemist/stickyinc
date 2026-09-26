@@ -126,12 +126,12 @@ Pre-built binaries ship from every tagged release. Signed and notarized builds a
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS (Apple Silicon) | `StickyInc_0.5.1_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
-| Windows (x64) — installer | `StickyInc_0.5.1_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
-| Windows (x64) — MSI | `StickyInc_0.5.1_x64_en-US.msi` | for group-policy deployment |
-| Linux (Debian/Ubuntu) | `StickyInc_0.5.1_amd64.deb` | `sudo dpkg -i` |
-| Linux (RPM/Fedora) | `StickyInc-0.5.1-1.x86_64.rpm` | `sudo rpm -i` |
-| Linux (portable) | `StickyInc_0.5.1_amd64.AppImage` | `chmod +x` and run |
+| macOS (Apple Silicon) | `StickyInc_<version>_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
+| Windows (x64) — installer | `StickyInc_<version>_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
+| Windows (x64) — MSI | `StickyInc_<version>_x64_en-US.msi` | for group-policy deployment |
+| Linux (Debian/Ubuntu) | `StickyInc_<version>_amd64.deb` | `sudo dpkg -i` |
+| Linux (RPM/Fedora) | `StickyInc-<version>-1.x86_64.rpm` | `sudo rpm -i` |
+| Linux (portable) | `StickyInc_<version>_amd64.AppImage` | `chmod +x` and run |
 
 > **[Grab the latest release →](https://github.com/Astralchemist/stickyinc/releases/latest)**
 
