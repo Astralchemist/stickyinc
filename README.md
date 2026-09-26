@@ -61,6 +61,8 @@ claude mcp add -s user stickyinc -- npx -y stickyinc
 }
 ```
 
+**Faster startup (optional):** `npx` asks npm for the latest StickyInc every time your client starts it, which takes 1–3 seconds. Install it once instead and it starts in about a tenth of a second: run `npm install -g stickyinc`, then use `stickyinc` as the command (`claude mcp add -s user stickyinc -- stickyinc`, or `"command": "stickyinc", "args": []`). Updates are then up to you: `npm install -g stickyinc@latest`.
+
 Restart the client and tell it something you need to do: *"remind me to call the dentist Friday afternoon."* If Claude Desktop or Cursor can't find `npx`, put its full path (from `which npx`) in `command`.
 
 **2 · Get the strip.** The server saves tasks to `~/.stickyinc/tasks.db`; the pane is the strip that shows them. [Install the pane](#install-the-pane) for macOS, Windows, or Linux. Its setup wizard can also do step 1 for Claude Code.
