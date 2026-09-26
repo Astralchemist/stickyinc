@@ -534,15 +534,14 @@ fn fingerprint(text: &str) -> String {
         .collect()
 }
 
-fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
+/// The quick-add window, built once and then only shown and hidden:
+/// building a webview takes a noticeable moment, and ⌘⇧N should feel
+/// instant. `run` builds it hidden at launch.
+fn quickadd_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     if let Some(w) = app.get_webview_window("quickadd") {
-        let _ = w.show();
-        let _ = w.set_focus();
-        let _ = w.center();
-        return Ok(());
+        return Ok(w);
     }
-    let url = WebviewUrl::App("quickadd.html".into());
-    let win = WebviewWindowBuilder::new(app, "quickadd", url)
+    WebviewWindowBuilder::new(app, "quickadd", WebviewUrl::App("quickadd.html".into()))
         .title("StickyInc — Quick Add")
         .inner_size(420.0, 64.0)
         .decorations(false)
@@ -550,10 +549,18 @@ fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
         .always_on_top(true)
         .resizable(false)
         .skip_taskbar(true)
-        .focused(true)
+        .visible(false)
+        .focused(false)
         .center()
-        .build()?;
-    let _ = win.show();
+        .build()
+}
+
+fn open_or_show_quickadd(app: &tauri::AppHandle) -> tauri::Result<()> {
+    let win = quickadd_window(app)?;
+    // The window is reused, so tell it to start with an empty box.
+    let _ = app.emit_to("quickadd", "quickadd-shown", ());
+    let _ = win.center();
+    win.show()?;
     let _ = win.set_focus();
     Ok(())
 }
@@ -646,7 +653,8 @@ fn complete_task(id: i64, db: tauri::State<'_, Mutex<DbPath>>) -> Result<Option<
 #[tauri::command]
 fn close_quickadd(window: tauri::Window) -> Result<(), String> {
     if window.label() == "quickadd" {
-        window.close().map_err(|e| e.to_string())?;
+        // Hidden, not closed, so the next ⌘⇧N doesn't rebuild it.
+        window.hide().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -728,6 +736,10 @@ pub fn run() {
                 Some(Modifiers::CONTROL | Modifiers::SHIFT),
                 Code::KeyN,
             ));
+
+            if let Err(e) = quickadd_window(app.handle()) {
+                eprintln!("quick-add window: {e}");
+            }
 
             if let Err(e) = app.state::<passive::PassiveWatcher>().sync(app.handle()) {
                 eprintln!("passive watcher: {e}");
