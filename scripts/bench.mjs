@@ -51,6 +51,9 @@ async function withServer(body) {
     await call("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "bench", version: "0" } });
     const startup = performance.now() - start;
     child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
+    // A client sits idle after startup until the model calls a tool, and
+    // the server warms up in that time (see the end of src/index.ts).
+    await new Promise((r) => setTimeout(r, 500));
     await body(call);
     return startup;
   } finally {

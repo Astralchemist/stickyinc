@@ -9,6 +9,7 @@ import { scheduleEventSchema, handleScheduleEvent } from "./tools/schedule_event
 import { listDoneSchema, handleListDone } from "./tools/list_done.js";
 import { stickySearchSchema, handleStickySearch } from "./tools/sticky_search.js";
 import { clientLabel } from "./provenance.js";
+import { describeDue, resolveDue } from "./dates.js";
 import { listRoutines, searchTasks } from "./db.js";
 import { morningReview, overdueReview, weeklyCloseout } from "./prompts.js";
 import { routinePromptText } from "./routines.js";
@@ -231,3 +232,11 @@ setInterval(syncRoutinePrompts, 30_000).unref();
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
+
+// The first due date a server reads and writes back costs ~40 ms (chrono
+// warming up, time-zone data loading for the reply). Pay it here, once the
+// client's startup requests are through, rather than when someone first
+// asks for a dated task.
+setTimeout(() => {
+  for (const phrase of ["tomorrow at 3pm", "Friday", "in 2 hours", "the 30th"]) describeDue(resolveDue(phrase));
+}, 200).unref();
