@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <strong>v0.5.2</strong> · MIT · MCP-first · no backend, ever<br />
+  <strong>v0.6.0</strong> · MIT · MCP-first · no backend, ever<br />
   <em>Bring your own LLM key — or piggyback on Claude Code, ChatGPT, Gemini, or local Ollama. Zero config either way.</em>
 </p>
 
@@ -122,7 +122,7 @@ Claude never talks to the pane directly. They share state through SQLite — one
 
 ## Install the pane
 
-Pre-built binaries ship from every tagged release. Signed and notarized builds arrive in v0.6 (see [SIGNING.md](./SIGNING.md) for the plan).
+Pre-built binaries ship from every tagged release. Builds are unsigned for now; [SIGNING.md](./SIGNING.md) has the plan for signed and notarized ones.
 
 | Platform | File | Notes |
 |---|---|---|

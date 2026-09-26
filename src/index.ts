@@ -25,7 +25,7 @@ import {
 
 const server = new McpServer({
   name: "stickyinc",
-  version: "0.5.2",
+  version: "0.6.0",
 });
 
 /** The connected app, from the MCP handshake; tasks record it as provenance. */
