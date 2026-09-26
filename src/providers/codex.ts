@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
+import { CHAT_TIMEOUT_MS, type ChatOptions, type ChatResult, type LLMProvider } from "./types.js";
 import { whichBinary } from "./which.js";
 
 /**
@@ -72,6 +72,13 @@ export class CodexProvider implements LLMProvider {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
+      // Fail the call on time even if a grandchild keeps the pipes open
+      // (then "close" would wait for it).
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error(`codex exec gave no answer within ${CHAT_TIMEOUT_MS / 1000}s`));
+      }, CHAT_TIMEOUT_MS);
+
       let out = "";
       let err = "";
       child.stdout.setEncoding("utf8");
@@ -79,10 +86,12 @@ export class CodexProvider implements LLMProvider {
       child.stdout.on("data", (chunk: string) => (out += chunk));
       child.stderr.on("data", (chunk: string) => (err += chunk));
       child.on("error", (e) => {
+        clearTimeout(timer);
         cleanup();
         reject(e);
       });
       child.on("close", (code) => {
+        clearTimeout(timer);
         if (code !== 0) {
           cleanup();
           const stderrSnip = err.trim().slice(0, 400);

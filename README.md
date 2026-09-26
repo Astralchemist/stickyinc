@@ -5,39 +5,67 @@
   ╚════██║   ██║   ██║██║     ██╔═██╗   ╚██╔╝      ██║██║╚██╗██║██║
   ███████║   ██║   ██║╚██████╗██║  ██╗   ██║       ██║██║ ╚████║╚██████╗
   ╚══════╝   ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝       ╚═╝╚═╝  ╚═══╝ ╚═════╝
-
-           ┌─────────────────────────────────────────────────────────┐
-           │  v0.5.2  ·  the subscription-mode release               │
-           │                                                         │
-           │   ▸ zero-key auto-detect for claude / codex / gemini    │
-           │   ▸ Ollama + LM Studio localhost fallback, free         │
-           │   ▸ sidebar hidden until setup is done — subtle bulges  │
-           │     from the edge on new task / due / setup events      │
-           └─────────────────────────────────────────────────────────┘
-
-
-      ┌──────────────────────────┐        ┌──────────────────────────┐
-      │ user ▸ call the dentist  │  MCP   │ ☐ call the dentist       │
-      │        friday afternoon  │ ─────▶ │ ☐ email Sarah            │
-      │ claude ▸ noted, adding.  │  tool  │ ☑ ship v0.5              │
-      └──────────────────────────┘        │ ☐ make it stick          │
-                 │                        └──────────────────────────┘
-             the chat                               the pane
-         evaporates at close           lives in ~/.stickyinc forever
 ```
 
 <p align="center">
-  <strong>v0.5.2</strong> · MIT · MCP-first · no backend, ever<br />
+  <strong>Tell Claude what you need to do. It sticks to the edge of your screen.</strong><br />
+  StickyInc is an MCP server plus a thin always-on-top strip. Mention a commitment in any chat, like <em>"call the dentist Friday"</em>, and it becomes a checkbox you can see, kept in a local SQLite file you own.
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" width="720" alt="A Claude chat: the user types 'I need to call the dentist Friday afternoon', and the task appears on the StickyInc strip at the right edge of the screen." />
+</p>
+
+<p align="center">
+  <strong>v0.6.1</strong> · MIT · MCP-first · no backend, ever<br />
   <em>Bring your own LLM key — or piggyback on Claude Code, ChatGPT, Gemini, or local Ollama. Zero config either way.</em>
 </p>
 
 <p align="center">
-  <a href="https://astralchemist.github.io/stickyinc/">Landing page</a> ·
+  <a href="#setup">Setup</a> ·
   <a href="https://github.com/Astralchemist/stickyinc/releases/latest">Download</a> ·
+  <a href="https://astralchemist.github.io/stickyinc/">Landing page</a> ·
   <a href="#the-idea">The idea</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#quickstart">Quickstart</a>
+  <a href="#architecture">Architecture</a>
 </p>
+
+---
+
+## Setup
+
+**1 · Add the MCP server to your client.** You need [Node.js 22.13+](https://nodejs.org); `npx` fetches StickyInc on first run.
+
+**Claude Code**
+
+```bash
+claude mcp add -s user stickyinc -- npx -y stickyinc
+```
+
+**Claude Desktop**: Settings → Developer → Edit Config, then add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "stickyinc": { "command": "npx", "args": ["-y", "stickyinc"] }
+  }
+}
+```
+
+**Cursor**: add to `~/.cursor/mcp.json` (every project) or `.cursor/mcp.json` (one project):
+
+```json
+{
+  "mcpServers": {
+    "stickyinc": { "command": "npx", "args": ["-y", "stickyinc"] }
+  }
+}
+```
+
+**Faster startup (optional):** `npx` asks npm for the latest StickyInc every time your client starts it, which takes 1–3 seconds. Install it once instead and it starts in about a tenth of a second: run `npm install -g stickyinc`, then use `stickyinc` as the command (`claude mcp add -s user stickyinc -- stickyinc`, or `"command": "stickyinc", "args": []`). Updates are then up to you: `npm install -g stickyinc@latest`.
+
+Restart the client and tell it something you need to do: *"remind me to call the dentist Friday afternoon."* If Claude Desktop or Cursor can't find `npx`, put its full path (from `which npx`) in `command`.
+
+**2 · Get the strip.** The server saves tasks to `~/.stickyinc/tasks.db`; the pane is the strip that shows them. [Install the pane](#install-the-pane) for macOS, Windows, or Linux. Its setup wizard can also do step 1 for Claude Code.
 
 ---
 
@@ -94,18 +122,18 @@ Claude never talks to the pane directly. They share state through SQLite — one
 
 ---
 
-## Install
+## Install the pane
 
-Pre-built binaries ship from every tagged release. Signed and notarized builds arrive in v0.6 (see [SIGNING.md](./SIGNING.md) for the plan).
+Pre-built binaries ship from every tagged release. Builds are unsigned for now; [SIGNING.md](./SIGNING.md) has the plan for signed and notarized ones.
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS (Apple Silicon) | `StickyInc_0.5.1_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
-| Windows (x64) — installer | `StickyInc_0.5.1_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
-| Windows (x64) — MSI | `StickyInc_0.5.1_x64_en-US.msi` | for group-policy deployment |
-| Linux (Debian/Ubuntu) | `StickyInc_0.5.1_amd64.deb` | `sudo dpkg -i` |
-| Linux (RPM/Fedora) | `StickyInc-0.5.1-1.x86_64.rpm` | `sudo rpm -i` |
-| Linux (portable) | `StickyInc_0.5.1_amd64.AppImage` | `chmod +x` and run |
+| macOS (Apple Silicon) | `StickyInc_<version>_aarch64.dmg` | ad-hoc signed; Gatekeeper will warn |
+| Windows (x64) — installer | `StickyInc_<version>_x64-setup.exe` | NSIS, unsigned — SmartScreen will warn |
+| Windows (x64) — MSI | `StickyInc_<version>_x64_en-US.msi` | for group-policy deployment |
+| Linux (Debian/Ubuntu) | `StickyInc_<version>_amd64.deb` | `sudo dpkg -i` |
+| Linux (RPM/Fedora) | `StickyInc-<version>-1.x86_64.rpm` | `sudo rpm -i` |
+| Linux (portable) | `StickyInc_<version>_amd64.AppImage` | `chmod +x` and run |
 
 > **[Grab the latest release →](https://github.com/Astralchemist/stickyinc/releases/latest)**
 
@@ -123,7 +151,11 @@ The task appears in your pane before Claude finishes its reply.
 
 ### Quick-add without a chat
 
-While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A centered input appears — type, hit Enter, done. Inline dates work: `buy bread due:2026-04-25`.
+While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Windows/Linux). A centered input appears — type, hit Enter, done. Inline dates work, in your local time: `buy bread due:2026-04-25` (9 am) or `call mum due:2026-04-25T15:30`.
+
+### Reminders
+
+While the pane runs, you get a notification a day before a task is due and again when it's due (StickyInc asks for permission the first time). They follow your system's Do Not Disturb and Focus settings. A task due within a day, or overdue, offers **Snooze 1h** or **tomorrow** (9 am) when you hover it, and the "Due now" pop-out at the screen edge opens the pane when clicked.
 
 ---
 
@@ -131,12 +163,58 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 
 | Tool | What it does |
 |---|---|
-| `add_task` | Add a todo. Optional `due_at` (ISO date). |
-| `add_task_natural` | Parse free text ("*call dentist Friday 3pm*") via the configured LLM. |
+| `add_task` | Add a todo. Optional `due_at`: the user's words (*"Friday 3pm"*, *"tomorrow"*) or ISO 8601. |
+| `add_task_natural` | Parse free text ("*call dentist Friday 3pm*"): the configured LLM finds the task and the words that say when. |
 | `list_tasks` | Return open tasks; silently appends `Done today (N)` so Claude has state continuity. |
 | `list_done` | Return recently completed tasks, optional archive. |
+| `sticky_search` | Search every task, open and done, by the words in it or the words it came from; filter by `status` and `since` (*"3 weeks ago"*). Up to 20, best match first, each with when it was added. |
 | `complete_task` | Mark a task done. |
 | `schedule_event` | Create a dated local task. Calendar sync is deferred to Claude's own connector (see below). |
+
+### Prompts
+
+Three ready-made prompts, for day-one value without writing any: they appear wherever your client lists MCP prompts (in Claude Code, as `/mcp__stickyinc__morning_review` and so on). Each fills itself in with your tasks and ends with a numbered action list.
+
+| Prompt | What it does |
+|---|---|
+| `morning_review` | Overdue, due today, due this week, and your oldest undated tasks: what matters today, and an action list for it. |
+| `overdue` | Each overdue task with when you added it and what you said: do it now, reschedule it, or drop it. |
+| `weekly_closeout` | The week's done, added, slipped and due-next tasks, and an action list for next week. |
+
+To have them run by themselves, every weekday morning say, see [Running StickyInc on a schedule](./docs/routines.md): recipes for Claude Desktop, launchd and cron.
+
+### Routines
+
+Save your own prompts as routines: ask Claude something like *"save a routine called waiting on others that asks what I'm waiting on from people, for Fridays at 3pm"*. Each routine appears next to the built-in prompts under its name, and can be exported as JSON to share (`sticky_routine_list` with `format: json`) and imported from someone else's (`sticky_routine_import`). Two examples to start from are in [`routines/`](./routines).
+
+| Tool | What it does |
+|---|---|
+| `sticky_routine_list` | List your routines, or export them as JSON. |
+| `sticky_routine_save` | Add a routine (a name, the prompt, and when it's meant to run), or replace one with the same name. |
+| `sticky_routine_delete` | Delete a routine. |
+| `sticky_routine_import` | Import routines from JSON; all or nothing. |
+
+### Where a task came from
+
+Rest the pointer on a task in the pane to see where it came from: the words it came from, the app, and when, e.g. *"Remind me to call the dentist Friday afternoon…"* — Added from Claude Code · 2h ago. The tools that add tasks take an optional `context` with an `excerpt` (the user's words, kept to 200 characters) and a `ref` (a file, URL, or ticket), and the server records the app from the MCP handshake. Passive extraction stores the sentence it heard and a pointer to the transcript message. They're kept in `source_client`, `source_ref` and `source_excerpt`.
+
+### Due dates
+
+The server works out due dates, not the model, so the same words at the same moment always give the same date. Claude passes along what you said (*"Friday 3pm"*, *"tomorrow"*, *"in 2 hours"*, *"next week"*) and StickyInc reads it with [chrono](https://github.com/wanasit/chrono), in your time zone.
+
+- A day with no time means 9 am. "Today" after 9 am means the end of today.
+- Relative words are read against when they were said: the moment of the tool call, or the message's timestamp for passive extraction.
+- Your words are stored in `due_phrase` next to `due_at`, and the task's create event records the moment they were read against, so any date can be traced back to what was said.
+
+`add_task` rejects words it can't read (*"EOD"*, *"the 5th"*) so Claude can rephrase; `add_task_natural` and passive extraction keep the task without a due date.
+
+### Keeping tasks somewhere else
+
+The MCP server writes to `~/.stickyinc/tasks.db` unless `STICKYINC_DB` points elsewhere. The pane only reads the default, so use this for a list you don't want on the strip:
+
+```bash
+claude mcp add -s user stickyinc -e STICKYINC_DB=~/work-tasks.db -- npx -y stickyinc
+```
 
 ---
 
@@ -150,7 +228,7 @@ While the pane is running, press **⌘⇧N** (macOS) or **Ctrl+Shift+N** (Window
 | **Codex (ChatGPT)** — your ChatGPT Plus / Pro / Team subscription, *no API key* | local `codex` CLI OAuth | `codex` on `$PATH` | whatever `codex` defaults to |
 | **Gemini** — your Google account (Gemini Advanced quota or free tier), *no API key* | local `gemini` CLI OAuth | `gemini` on `$PATH` | whatever `gemini` defaults to |
 | **Local (Ollama / LM Studio)** — fully offline, free, no cloud call at all | — | `:11434` or `:1234` responding | first installed model |
-| **OpenRouter** — one key, ~200 models, cheapest per token | API key | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-haiku` |
+| **OpenRouter** — one key, ~200 models, cheapest per token | API key | `OPENROUTER_API_KEY` | `anthropic/claude-haiku-4.5` |
 | **Anthropic** (direct) | API key ([console.anthropic.com](https://console.anthropic.com/)) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
 | **OpenAI** (direct) | API key ([platform.openai.com](https://platform.openai.com/api-keys)) | `OPENAI_API_KEY` | `gpt-4o-mini` |
 | **OpenAI-compatible** (Groq, Together, Fireworks, vLLM…) | API key | config file | — |
@@ -206,7 +284,7 @@ Each subscription CLI call shells out to the tool's print mode (`claude -p` / `c
 { "provider": "compat", "base_url": "http://localhost:11434/v1", "model": "llama3.2", "api_key": "ollama" }
 ```
 
-Override the model on any env-var or auto-detect path with `STICKYINC_MODEL=…`.
+Override the model on any env-var or auto-detect path with `STICKYINC_MODEL=…`. Each LLM call gives up after 90 seconds; raise that with `STICKYINC_LLM_TIMEOUT_MS=…` if you run a slow local model.
 
 ### A note on subscription-mode tradeoffs
 
@@ -218,9 +296,10 @@ Both `claude-code` and `codex` providers run a subprocess per call (~500ms–1s 
 
 A daemon that tails your Claude Code transcripts and auto-surfaces commitments you mention in passing.
 
+Turn it on in the setup wizard's last step (re-open setup any time from the pane's **setup** link). The pane then runs it in the background with your configured LLM, stops it when you quit, and writes its output to `~/.stickyinc/watcher.log`. You can also run it by hand:
+
 ```bash
-export OPENROUTER_API_KEY=sk-or-...
-cd ~/stickyinc && pnpm watch
+npx -y -p stickyinc stickyinc-watch   # or, from a clone: pnpm watch
 ```
 
 - Watches `~/.claude/projects/**/*.jsonl` (Claude Code session files).
@@ -237,6 +316,21 @@ cd ~/stickyinc && pnpm watch
 StickyInc intentionally doesn't ship its own Google OAuth flow. It's the single hardest setup step in the entire product surface, and Claude Desktop already has a battle-tested Google Calendar connector built in.
 
 When you want a real calendar event, ask Claude in the same turn. `schedule_event` stores the dated task in StickyInc; Claude creates the calendar entry via its own connector. One less thing for you to set up, one less place your tokens live.
+
+### Stack pages from your browser
+
+Right-click any page, link or selection → **Stack on StickyInc** → Read, Reply, Review or Decide. The page becomes a task about what you owe it (*Reply to “Q3 budget thread”*) with its address and your selection as where it came from, so due dates, reminders, search and "you clipped this to reply to last Tuesday" all work. Reply is due tomorrow at 9am; the rest have no date. Clips sit in a stack at the top of the pane: hover to fan it out, click a page to open it, tick it when it's done. Chrome and Edge for now; see [extension/README.md](./extension/README.md) to install it and pair it with the app.
+
+### Apple Reminders (macOS)
+
+Turn it on from the pane's gear → Settings → Apple Reminders. Your open tasks then go to a **StickyInc** list in Reminders, which iCloud puts on your iPhone and Watch: updated when a task's text or due time changes, and ticked when you finish it. It's one way for now, so changes made in Reminders stay there. macOS asks once for permission to control Reminders; if you said no, allow StickyInc in System Settings → Privacy & Security → Automation.
+
+### Your dated tasks in any calendar (.ics)
+
+While the pane runs, it keeps `~/.stickyinc/stickyinc.ics` up to date: every open task with a due date is a 30-minute event at its due time, with the words it came from in the notes. Finished tasks drop out. Each event's UID is its task's, so a calendar that refreshes the file updates events instead of adding copies. (Tasks added while the pane is closed appear the next time it opens.)
+
+- **Apple Calendar:** File → New Calendar Subscription…, then paste the file's address: `file:///Users/<you>/.stickyinc/stickyinc.ics`. The pane's gear → Settings → Calendar → **Copy address** gives you yours. Pick an auto-refresh interval and your tasks stay in step.
+- **Google Calendar, Outlook and others** can't read a file on your computer, so import it instead (Google: Settings → Import & export). That's a one-time copy; import again to pick up changes.
 
 ---
 

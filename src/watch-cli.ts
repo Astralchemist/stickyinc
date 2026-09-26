@@ -11,6 +11,7 @@ const opts = {
     return 3000;
   })(),
   verbose: !args.includes("--quiet") && !args.includes("-q"),
+  exitWithParent: args.includes("--exit-with-parent"),
 };
 
 runWatcher(opts).catch((err) => {

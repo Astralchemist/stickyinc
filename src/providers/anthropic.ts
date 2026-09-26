@@ -1,4 +1,4 @@
-import type { ChatOptions, ChatResult, LLMProvider } from "./types.js";
+import { CHAT_TIMEOUT_MS, type ChatOptions, type ChatResult, type LLMProvider } from "./types.js";
 
 interface AnthropicConfig {
   api_key: string;
@@ -35,6 +35,7 @@ export class AnthropicProvider implements LLMProvider {
         "content-type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Anthropic API error: ${res.status} ${await res.text()}`);

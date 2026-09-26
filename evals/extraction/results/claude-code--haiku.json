@@ -1,0 +1,3128 @@
+{
+  "provider": "claude-code",
+  "model": "haiku",
+  "ranAt": "2026-09-26T10:09:30.527Z",
+  "said": "2026-09-21T10:00:00Z",
+  "runs": 3,
+  "metrics": {
+    "garbageRate": 0,
+    "foundRate": 1,
+    "dueAccuracy": 1,
+    "quoteExactRate": 1,
+    "latencyP50Ms": 4387,
+    "latencyP95Ms": 7676
+  },
+  "results": [
+    {
+      "id": "c01",
+      "run": 0,
+      "category": "commitment",
+      "message": "I need to call the dentist to reschedule my cleaning.",
+      "ms": 5652.6269999999995,
+      "got": [
+        {
+          "text": "Call the dentist to reschedule my cleaning",
+          "due": null,
+          "duePhrase": null,
+          "quote": "I need to call the dentist to reschedule my cleaning.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c02",
+      "run": 0,
+      "category": "commitment",
+      "message": "Remind me to renew my passport, it expires in November.",
+      "ms": 4754.1104589999995,
+      "got": [
+        {
+          "text": "Renew my passport",
+          "due": "2026-11-01T09:00:00Z",
+          "duePhrase": "November",
+          "quote": "Remind me to renew my passport, it expires in November.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c03",
+      "run": 0,
+      "category": "due",
+      "message": "I have to send the invoice to Acme by Friday.",
+      "ms": 4352.877333,
+      "got": [
+        {
+          "text": "Send the invoice to Acme",
+          "due": "2026-09-25T09:00:00Z",
+          "duePhrase": "Friday",
+          "quote": "I have to send the invoice to Acme by Friday.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c04",
+      "run": 0,
+      "category": "due",
+      "message": "Let me email Sarah tomorrow about the offsite.",
+      "ms": 4634.849875,
+      "got": [
+        {
+          "text": "Email Sarah about the offsite",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Let me email Sarah tomorrow about the offsite.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c05",
+      "run": 0,
+      "category": "commitment",
+      "message": "I should really back up my laptop this week.",
+      "ms": 5268.485375,
+      "got": [
+        {
+          "text": "Back up laptop",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "this week",
+          "quote": "I should really back up my laptop this week.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c06",
+      "run": 0,
+      "category": "due",
+      "message": "Don't let me forget to pay the electricity bill before the 30th.",
+      "ms": 4635.877792,
+      "got": [
+        {
+          "text": "Pay the electricity bill",
+          "due": "2026-09-30T09:00:00Z",
+          "duePhrase": "before the 30th",
+          "quote": "Don't let me forget to pay the electricity bill before the 30th.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c07",
+      "run": 0,
+      "category": "due",
+      "message": "I'm going to book flights to Lisbon tonight at 9pm.",
+      "ms": 3751.325499999999,
+      "got": [
+        {
+          "text": "Book flights to Lisbon",
+          "due": "2026-09-21T21:00:00Z",
+          "duePhrase": "tonight at 9pm",
+          "quote": "I'm going to book flights to Lisbon tonight at 9pm.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c08",
+      "run": 0,
+      "category": "due",
+      "message": "gotta pick up the dry cleaning thursday at 2pm",
+      "ms": 4613.622542,
+      "got": [
+        {
+          "text": "Pick up the dry cleaning",
+          "due": "2026-09-24T14:00:00Z",
+          "duePhrase": "thursday at 2pm",
+          "quote": "gotta pick up the dry cleaning thursday at 2pm",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c09",
+      "run": 0,
+      "category": "due",
+      "message": "Need to renew the domain for stickyinc before October 3.",
+      "ms": 4246.443958,
+      "got": [
+        {
+          "text": "Renew the domain for stickyinc",
+          "due": "2026-10-03T09:00:00Z",
+          "duePhrase": "before October 3",
+          "quote": "Need to renew the domain for stickyinc before October 3.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c10",
+      "run": 0,
+      "category": "commitment",
+      "message": "I'll review Tom's PR after lunch.",
+      "ms": 3830.5197500000004,
+      "got": [
+        {
+          "text": "Review Tom's PR",
+          "due": null,
+          "duePhrase": "after lunch",
+          "quote": "I'll review Tom's PR after lunch.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c11",
+      "run": 0,
+      "category": "due",
+      "message": "Must file the quarterly taxes by September 28.",
+      "ms": 4666.291084,
+      "got": [
+        {
+          "text": "File the quarterly taxes",
+          "due": "2026-09-28T09:00:00Z",
+          "duePhrase": "September 28",
+          "quote": "Must file the quarterly taxes by September 28.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c12",
+      "run": 0,
+      "category": "due",
+      "message": "I want to call mom at 9 tonight.",
+      "ms": 7676.184417000001,
+      "got": [
+        {
+          "text": "Call mom",
+          "due": "2026-09-21T21:00:00Z",
+          "duePhrase": "9 pm tonight",
+          "quote": "I want to call mom at 9 tonight.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c13",
+      "run": 0,
+      "category": "commitment",
+      "message": "Note to self: cancel the gym membership.",
+      "ms": 4427.675708999999,
+      "got": [
+        {
+          "text": "Cancel the gym membership",
+          "due": null,
+          "duePhrase": null,
+          "quote": "Note to self: cancel the gym membership.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c14",
+      "run": 0,
+      "category": "due",
+      "message": "I promised Priya I'd send her the slides tomorrow at 10am.",
+      "ms": 3938.311207999999,
+      "got": [
+        {
+          "text": "Send slides to Priya",
+          "due": "2026-09-22T10:00:00Z",
+          "duePhrase": "tomorrow at 10am",
+          "quote": "I promised Priya I'd send her the slides tomorrow at 10am.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c15",
+      "run": 0,
+      "category": "commitment",
+      "message": "I need to fix the leaking kitchen tap this weekend.",
+      "ms": 4018.902959000001,
+      "got": [
+        {
+          "text": "Fix the leaking kitchen tap",
+          "due": "2026-09-26T09:00:00Z",
+          "duePhrase": "this weekend",
+          "quote": "I need to fix the leaking kitchen tap this weekend.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c16",
+      "run": 0,
+      "category": "commitment",
+      "message": "todo: order new printer ink",
+      "ms": 3652.717084,
+      "got": [
+        {
+          "text": "Order new printer ink",
+          "due": null,
+          "duePhrase": null,
+          "quote": "todo: order new printer ink",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c17",
+      "run": 0,
+      "category": "due",
+      "message": "Remind me in two hours to take the bread out of the oven.",
+      "ms": 5665.647666999999,
+      "got": [
+        {
+          "text": "Take the bread out of the oven",
+          "due": "2026-09-21T12:00:00Z",
+          "duePhrase": "in two hours",
+          "quote": "Remind me in two hours to take the bread out of the oven.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c18",
+      "run": 0,
+      "category": "due",
+      "message": "I've got to finish the grant application by end of day.",
+      "ms": 4633.787042,
+      "got": [
+        {
+          "text": "Finish the grant application",
+          "due": "2026-09-21T17:00:00Z",
+          "duePhrase": "end of day",
+          "quote": "I've got to finish the grant application by end of day.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c19",
+      "run": 0,
+      "category": "due",
+      "message": "Next Monday I need to start the onboarding docs for the new hire.",
+      "ms": 4357.764166000001,
+      "got": [
+        {
+          "text": "Start the onboarding docs for the new hire",
+          "due": "2026-09-28T09:00:00Z",
+          "duePhrase": "Next Monday",
+          "quote": "Next Monday I need to start the onboarding docs for the new hire.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c20",
+      "run": 0,
+      "category": "due",
+      "message": "I should water the plants Wednesday morning.",
+      "ms": 4045.3004579999997,
+      "got": [
+        {
+          "text": "Water the plants",
+          "due": "2026-09-23T06:00:00Z",
+          "duePhrase": "Wednesday morning",
+          "quote": "I should water the plants Wednesday morning.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "m01",
+      "run": 0,
+      "category": "multiple",
+      "message": "Before I forget: call the bank about the card, buy a birthday gift for Leo, and renew the car insurance.",
+      "ms": 5280.779457999999,
+      "got": [
+        {
+          "text": "Call the bank about the card",
+          "due": null,
+          "duePhrase": null,
+          "quote": "call the bank about the card",
+          "quoteExact": true
+        },
+        {
+          "text": "Buy a birthday gift for Leo",
+          "due": null,
+          "duePhrase": null,
+          "quote": "buy a birthday gift for Leo",
+          "quoteExact": true
+        },
+        {
+          "text": "Renew the car insurance",
+          "due": null,
+          "duePhrase": null,
+          "quote": "renew the car insurance",
+          "quoteExact": true
+        }
+      ],
+      "found": 3,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "m02",
+      "run": 0,
+      "category": "multiple",
+      "message": "Two things for tomorrow: email the landlord and book the vet.",
+      "ms": 5337.118375,
+      "got": [
+        {
+          "text": "Email the landlord",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Two things for tomorrow: email the landlord and book the vet.",
+          "quoteExact": true
+        },
+        {
+          "text": "Book the vet",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Two things for tomorrow: email the landlord and book the vet.",
+          "quoteExact": true
+        }
+      ],
+      "found": 2,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 2,
+      "dueWrong": []
+    },
+    {
+      "id": "m03",
+      "run": 0,
+      "category": "multiple",
+      "message": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+      "ms": 8009.735290999999,
+      "got": [
+        {
+          "text": "Renew library books",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "this week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        },
+        {
+          "text": "Schedule the plumber",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "this week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        },
+        {
+          "text": "Call grandma",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "this week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        }
+      ],
+      "found": 3,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x01",
+      "run": 0,
+      "category": "mixed",
+      "message": "I need to deploy this to staging tomorrow, can you prep the migration?",
+      "ms": 4335.352208,
+      "got": [
+        {
+          "text": "Deploy to staging",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "I need to deploy this to staging tomorrow",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "x02",
+      "run": 0,
+      "category": "mixed",
+      "message": "Once this is merged I have to tell the team in #eng.",
+      "ms": 4683.604667000003,
+      "got": [
+        {
+          "text": "Tell the team in #eng",
+          "due": null,
+          "duePhrase": "once this is merged",
+          "quote": "Once this is merged I have to tell the team in #eng.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x03",
+      "run": 0,
+      "category": "mixed",
+      "message": "Can you remind me to rotate the OpenRouter key later?",
+      "ms": 4253.833459000001,
+      "got": [
+        {
+          "text": "Rotate the OpenRouter key",
+          "due": null,
+          "duePhrase": "later",
+          "quote": "Can you remind me to rotate the OpenRouter key later?",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x04",
+      "run": 0,
+      "category": "mixed",
+      "message": "I'll look at the flaky test after standup tomorrow, for now just skip it.",
+      "ms": 4155.695583000001,
+      "got": [
+        {
+          "text": "Look at the flaky test",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "after standup tomorrow",
+          "quote": "I'll look at the flaky test after standup tomorrow",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "x05",
+      "run": 0,
+      "category": "mixed",
+      "message": "don't worry about the docs, I'll write them myself this weekend",
+      "ms": 3826.636208,
+      "got": [
+        {
+          "text": "Write the docs",
+          "due": "2026-09-26T09:00:00Z",
+          "duePhrase": "this weekend",
+          "quote": "don't worry about the docs, I'll write them myself this weekend",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n01",
+      "run": 0,
+      "category": "request to Claude",
+      "message": "Can you refactor the auth module to use the new session store?",
+      "ms": 3821.1955830000006,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n02",
+      "run": 0,
+      "category": "request to Claude",
+      "message": "Please add a unit test for parseCommitments.",
+      "ms": 3852.313624999999,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n03",
+      "run": 0,
+      "category": "request to Claude",
+      "message": "Fix the failing build and then run the linter.",
+      "ms": 6809.673125000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n04",
+      "run": 0,
+      "category": "request to Claude",
+      "message": "Let's rename this variable to something clearer.",
+      "ms": 3540.664499999999,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n05",
+      "run": 0,
+      "category": "request to Claude",
+      "message": "Write me a bash script that backs up my photos.",
+      "ms": 4425.467000000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n06",
+      "run": 0,
+      "category": "request to Claude",
+      "message": "Go ahead and commit that.",
+      "ms": 3347.5776669999977,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n07",
+      "run": 0,
+      "category": "hypothetical",
+      "message": "I could maybe learn Rust someday, who knows.",
+      "ms": 3695.473833,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n08",
+      "run": 0,
+      "category": "hypothetical",
+      "message": "If I had more time I'd rewrite the whole frontend.",
+      "ms": 3330.1969580000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n09",
+      "run": 0,
+      "category": "hypothetical",
+      "message": "It would be nice to visit Japan at some point.",
+      "ms": 3647.768959000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n10",
+      "run": 0,
+      "category": "past",
+      "message": "I called the dentist yesterday and they moved me to Friday.",
+      "ms": 4387.454417000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n11",
+      "run": 0,
+      "category": "past",
+      "message": "Already sent the invoice to Acme this morning.",
+      "ms": 4541.598875,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n12",
+      "run": 0,
+      "category": "past",
+      "message": "I renewed my passport last month, finally.",
+      "ms": 3740.5327910000015,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n13",
+      "run": 0,
+      "category": "question",
+      "message": "Should I email Sarah or just wait for her to reply?",
+      "ms": 4265.933917000002,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n14",
+      "run": 0,
+      "category": "question",
+      "message": "What's the best way to back up a Postgres database?",
+      "ms": 3829.1399580000034,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n15",
+      "run": 0,
+      "category": "someone else",
+      "message": "Sarah said she'll send the deck on Friday.",
+      "ms": 4895.066125000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n16",
+      "run": 0,
+      "category": "someone else",
+      "message": "The landlord is supposed to fix the heating next week.",
+      "ms": 4602.022500000003,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n17",
+      "run": 0,
+      "category": "chit-chat",
+      "message": "thanks, that worked!",
+      "ms": 3977.6064160000024,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n18",
+      "run": 0,
+      "category": "chit-chat",
+      "message": "lol yeah the build is slow today",
+      "ms": 3436.8363750000026,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n19",
+      "run": 0,
+      "category": "chit-chat",
+      "message": "Why do I always have to be the one who fixes the printer?",
+      "ms": 4717.875625000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n20",
+      "run": 0,
+      "category": "pasted",
+      "message": "Here's the error I'm getting:\n```\nTypeError: Cannot read properties of undefined (reading 'id')\n    at renderTask (main.ts:212:18)\n    at refresh (main.ts:558:5)\n// TODO: handle the null task case\n```",
+      "ms": 5772.235375000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n21",
+      "run": 0,
+      "category": "pasted",
+      "message": "npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory.\nnpm notice New major version of npm available! 10.9.2 -> 11.19.1\nnpm notice To update run: npm install -g npm@11.19.1",
+      "ms": 5039.353958,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n22",
+      "run": 0,
+      "category": "pasted",
+      "message": "The README says to run `pnpm install` and then `pnpm dev` before opening a PR.",
+      "ms": 4212.824874999998,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a01",
+      "run": 0,
+      "category": "Claude's own actions",
+      "message": "I'll run the test suite now and report back.",
+      "ms": 3942.1086670000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a02",
+      "run": 0,
+      "category": "Claude's own actions",
+      "message": "Let me check the logs first.",
+      "ms": 3853.6615420000016,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a03",
+      "run": 0,
+      "category": "Claude's own actions",
+      "message": "Done — the migration ran cleanly. I've also updated the docs.",
+      "ms": 5131.079375000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a04",
+      "run": 0,
+      "category": "Claude's own actions",
+      "message": "Next I'll fix the typo on line 40 and re-run the build.",
+      "ms": 4086.450874999995,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a05",
+      "run": 0,
+      "category": "Claude hands you a task",
+      "message": "That's fixed. One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.",
+      "ms": 23823.695999999996,
+      "got": [
+        {
+          "text": "Revoke the npm token",
+          "due": null,
+          "duePhrase": null,
+          "quote": "One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a06",
+      "run": 0,
+      "category": "Claude hands you a task",
+      "message": "The tests pass now. You might want to add a regression test for this at some point.",
+      "ms": 6150.900750000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "l01",
+      "run": 0,
+      "category": "long",
+      "message": "We got back from Porto last night and honestly the trip was great, the food alone was worth it, and the weather held up the whole week even though the forecast said rain. The only annoying part was the airport, which took forever. Anyway, I need to cancel the hotel booking in Porto for the November trip before Thursday, since we're going to stay with friends instead. The rest of the week is pretty quiet.",
+      "ms": 5368.662124999995,
+      "got": [
+        {
+          "text": "Cancel the hotel booking in Porto for the November trip",
+          "due": "2026-09-24T09:00:00Z",
+          "duePhrase": "before Thursday",
+          "quote": "I need to cancel the hotel booking in Porto for the November trip before Thursday",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "l02",
+      "run": 0,
+      "category": "long",
+      "message": "That's the full deploy log. I need to file a bug report with Vercel about this tomorrow.",
+      "ms": 4109.466832999999,
+      "got": [
+        {
+          "text": "File a bug report with Vercel",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "I need to file a bug report with Vercel about this tomorrow.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c01",
+      "run": 1,
+      "category": "commitment",
+      "message": "I need to call the dentist to reschedule my cleaning.",
+      "ms": 9878.181791000003,
+      "got": [
+        {
+          "text": "Call the dentist to reschedule cleaning",
+          "due": null,
+          "duePhrase": null,
+          "quote": "I need to call the dentist to reschedule my cleaning.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c02",
+      "run": 1,
+      "category": "commitment",
+      "message": "Remind me to renew my passport, it expires in November.",
+      "ms": 14721.682041,
+      "got": [
+        {
+          "text": "Renew my passport",
+          "due": "2026-11-01T09:00:00Z",
+          "duePhrase": "November",
+          "quote": "Remind me to renew my passport, it expires in November.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c03",
+      "run": 1,
+      "category": "due",
+      "message": "I have to send the invoice to Acme by Friday.",
+      "ms": 4859.096250000002,
+      "got": [
+        {
+          "text": "Send the invoice to Acme",
+          "due": "2026-09-25T09:00:00Z",
+          "duePhrase": "by Friday",
+          "quote": "I have to send the invoice to Acme by Friday.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c04",
+      "run": 1,
+      "category": "due",
+      "message": "Let me email Sarah tomorrow about the offsite.",
+      "ms": 4247.5823329999985,
+      "got": [
+        {
+          "text": "Email Sarah about the offsite",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Let me email Sarah tomorrow about the offsite.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c05",
+      "run": 1,
+      "category": "commitment",
+      "message": "I should really back up my laptop this week.",
+      "ms": 5051.240708999998,
+      "got": [
+        {
+          "text": "Back up my laptop",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "this week",
+          "quote": "I should really back up my laptop this week.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c06",
+      "run": 1,
+      "category": "due",
+      "message": "Don't let me forget to pay the electricity bill before the 30th.",
+      "ms": 5200.782333999996,
+      "got": [
+        {
+          "text": "Pay the electricity bill",
+          "due": "2026-09-30T09:00:00Z",
+          "duePhrase": "before the 30th",
+          "quote": "Don't let me forget to pay the electricity bill before the 30th.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c07",
+      "run": 1,
+      "category": "due",
+      "message": "I'm going to book flights to Lisbon tonight at 9pm.",
+      "ms": 3895.5906669999968,
+      "got": [
+        {
+          "text": "Book flights to Lisbon",
+          "due": "2026-09-21T21:00:00Z",
+          "duePhrase": "tonight at 9pm",
+          "quote": "I'm going to book flights to Lisbon tonight at 9pm.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c08",
+      "run": 1,
+      "category": "due",
+      "message": "gotta pick up the dry cleaning thursday at 2pm",
+      "ms": 5472.960333000003,
+      "got": [
+        {
+          "text": "Pick up the dry cleaning",
+          "due": "2026-09-24T14:00:00Z",
+          "duePhrase": "thursday at 2pm",
+          "quote": "gotta pick up the dry cleaning thursday at 2pm",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c09",
+      "run": 1,
+      "category": "due",
+      "message": "Need to renew the domain for stickyinc before October 3.",
+      "ms": 4212.144457999995,
+      "got": [
+        {
+          "text": "Renew the domain for stickyinc",
+          "due": "2026-10-03T09:00:00Z",
+          "duePhrase": "before October 3",
+          "quote": "Need to renew the domain for stickyinc before October 3.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c10",
+      "run": 1,
+      "category": "commitment",
+      "message": "I'll review Tom's PR after lunch.",
+      "ms": 4849.369250000003,
+      "got": [
+        {
+          "text": "Review Tom's PR",
+          "due": null,
+          "duePhrase": "after lunch",
+          "quote": "I'll review Tom's PR after lunch.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c11",
+      "run": 1,
+      "category": "due",
+      "message": "Must file the quarterly taxes by September 28.",
+      "ms": 4273.885582999996,
+      "got": [
+        {
+          "text": "File the quarterly taxes",
+          "due": "2026-09-28T09:00:00Z",
+          "duePhrase": "September 28",
+          "quote": "Must file the quarterly taxes by September 28.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c12",
+      "run": 1,
+      "category": "due",
+      "message": "I want to call mom at 9 tonight.",
+      "ms": 6136.462874999997,
+      "got": [
+        {
+          "text": "Call mom",
+          "due": "2026-09-21T21:00:00Z",
+          "duePhrase": "9 tonight",
+          "quote": "I want to call mom at 9 tonight.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c13",
+      "run": 1,
+      "category": "commitment",
+      "message": "Note to self: cancel the gym membership.",
+      "ms": 3670.7445420000004,
+      "got": [
+        {
+          "text": "Cancel the gym membership",
+          "due": null,
+          "duePhrase": null,
+          "quote": "Note to self: cancel the gym membership.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c14",
+      "run": 1,
+      "category": "due",
+      "message": "I promised Priya I'd send her the slides tomorrow at 10am.",
+      "ms": 4713.6343750000015,
+      "got": [
+        {
+          "text": "Send slides to Priya",
+          "due": "2026-09-22T10:00:00Z",
+          "duePhrase": "tomorrow at 10am",
+          "quote": "I promised Priya I'd send her the slides tomorrow at 10am.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c15",
+      "run": 1,
+      "category": "commitment",
+      "message": "I need to fix the leaking kitchen tap this weekend.",
+      "ms": 5498.951041,
+      "got": [
+        {
+          "text": "Fix the leaking kitchen tap",
+          "due": "2026-09-26T09:00:00Z",
+          "duePhrase": "this weekend",
+          "quote": "I need to fix the leaking kitchen tap this weekend.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c16",
+      "run": 1,
+      "category": "commitment",
+      "message": "todo: order new printer ink",
+      "ms": 3934.359083000003,
+      "got": [
+        {
+          "text": "Order new printer ink",
+          "due": null,
+          "duePhrase": null,
+          "quote": "todo: order new printer ink",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c17",
+      "run": 1,
+      "category": "due",
+      "message": "Remind me in two hours to take the bread out of the oven.",
+      "ms": 5138.736959000002,
+      "got": [
+        {
+          "text": "Take the bread out of the oven",
+          "due": "2026-09-21T12:00:00Z",
+          "duePhrase": "in two hours",
+          "quote": "Remind me in two hours to take the bread out of the oven.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c18",
+      "run": 1,
+      "category": "due",
+      "message": "I've got to finish the grant application by end of day.",
+      "ms": 4154.535875000001,
+      "got": [
+        {
+          "text": "Finish the grant application",
+          "due": "2026-09-21T17:00:00Z",
+          "duePhrase": "end of day",
+          "quote": "I've got to finish the grant application by end of day.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c19",
+      "run": 1,
+      "category": "due",
+      "message": "Next Monday I need to start the onboarding docs for the new hire.",
+      "ms": 4416.7198750000025,
+      "got": [
+        {
+          "text": "Start the onboarding docs for the new hire",
+          "due": "2026-09-28T09:00:00Z",
+          "duePhrase": "Next Monday",
+          "quote": "Next Monday I need to start the onboarding docs for the new hire.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c20",
+      "run": 1,
+      "category": "due",
+      "message": "I should water the plants Wednesday morning.",
+      "ms": 4093.4221250000046,
+      "got": [
+        {
+          "text": "Water the plants",
+          "due": "2026-09-23T06:00:00Z",
+          "duePhrase": "Wednesday morning",
+          "quote": "I should water the plants Wednesday morning.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "m01",
+      "run": 1,
+      "category": "multiple",
+      "message": "Before I forget: call the bank about the card, buy a birthday gift for Leo, and renew the car insurance.",
+      "ms": 5805.943499999994,
+      "got": [
+        {
+          "text": "Call the bank about the card",
+          "due": null,
+          "duePhrase": null,
+          "quote": "call the bank about the card",
+          "quoteExact": true
+        },
+        {
+          "text": "Buy a birthday gift for Leo",
+          "due": null,
+          "duePhrase": null,
+          "quote": "buy a birthday gift for Leo",
+          "quoteExact": true
+        },
+        {
+          "text": "Renew the car insurance",
+          "due": null,
+          "duePhrase": null,
+          "quote": "renew the car insurance",
+          "quoteExact": true
+        }
+      ],
+      "found": 3,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "m02",
+      "run": 1,
+      "category": "multiple",
+      "message": "Two things for tomorrow: email the landlord and book the vet.",
+      "ms": 6967.716541999995,
+      "got": [
+        {
+          "text": "Email the landlord",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "email the landlord",
+          "quoteExact": true
+        },
+        {
+          "text": "Book the vet",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "book the vet",
+          "quoteExact": true
+        }
+      ],
+      "found": 2,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 2,
+      "dueWrong": []
+    },
+    {
+      "id": "m03",
+      "run": 1,
+      "category": "multiple",
+      "message": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+      "ms": 6705.001667000004,
+      "got": [
+        {
+          "text": "Renew library books",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "This week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        },
+        {
+          "text": "Schedule the plumber",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "This week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        },
+        {
+          "text": "Call grandma",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "This week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        }
+      ],
+      "found": 3,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x01",
+      "run": 1,
+      "category": "mixed",
+      "message": "I need to deploy this to staging tomorrow, can you prep the migration?",
+      "ms": 4056.918166999996,
+      "got": [
+        {
+          "text": "Deploy this to staging",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "I need to deploy this to staging tomorrow",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "x02",
+      "run": 1,
+      "category": "mixed",
+      "message": "Once this is merged I have to tell the team in #eng.",
+      "ms": 5598.06091700001,
+      "got": [
+        {
+          "text": "Tell the team in #eng",
+          "due": null,
+          "duePhrase": "Once this is merged",
+          "quote": "Once this is merged I have to tell the team in #eng.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x03",
+      "run": 1,
+      "category": "mixed",
+      "message": "Can you remind me to rotate the OpenRouter key later?",
+      "ms": 4924.002208000005,
+      "got": [
+        {
+          "text": "Rotate the OpenRouter key",
+          "due": null,
+          "duePhrase": "later",
+          "quote": "Can you remind me to rotate the OpenRouter key later?",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x04",
+      "run": 1,
+      "category": "mixed",
+      "message": "I'll look at the flaky test after standup tomorrow, for now just skip it.",
+      "ms": 5847.353707999995,
+      "got": [
+        {
+          "text": "Look at the flaky test",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "after standup tomorrow",
+          "quote": "I'll look at the flaky test after standup tomorrow",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "x05",
+      "run": 1,
+      "category": "mixed",
+      "message": "don't worry about the docs, I'll write them myself this weekend",
+      "ms": 4868.754958999998,
+      "got": [
+        {
+          "text": "Write the docs",
+          "due": "2026-09-26T09:00:00Z",
+          "duePhrase": "this weekend",
+          "quote": "I'll write them myself this weekend",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n01",
+      "run": 1,
+      "category": "request to Claude",
+      "message": "Can you refactor the auth module to use the new session store?",
+      "ms": 3949.3042920000007,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n02",
+      "run": 1,
+      "category": "request to Claude",
+      "message": "Please add a unit test for parseCommitments.",
+      "ms": 4356.406541999997,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n03",
+      "run": 1,
+      "category": "request to Claude",
+      "message": "Fix the failing build and then run the linter.",
+      "ms": 4408.89020899999,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n04",
+      "run": 1,
+      "category": "request to Claude",
+      "message": "Let's rename this variable to something clearer.",
+      "ms": 4657.105333999993,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n05",
+      "run": 1,
+      "category": "request to Claude",
+      "message": "Write me a bash script that backs up my photos.",
+      "ms": 4214.565082999994,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n06",
+      "run": 1,
+      "category": "request to Claude",
+      "message": "Go ahead and commit that.",
+      "ms": 3710.2079999999987,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n07",
+      "run": 1,
+      "category": "hypothetical",
+      "message": "I could maybe learn Rust someday, who knows.",
+      "ms": 4063.4832910000114,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n08",
+      "run": 1,
+      "category": "hypothetical",
+      "message": "If I had more time I'd rewrite the whole frontend.",
+      "ms": 3717.217166000002,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n09",
+      "run": 1,
+      "category": "hypothetical",
+      "message": "It would be nice to visit Japan at some point.",
+      "ms": 3492.3025830000115,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n10",
+      "run": 1,
+      "category": "past",
+      "message": "I called the dentist yesterday and they moved me to Friday.",
+      "ms": 4289.497292,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n11",
+      "run": 1,
+      "category": "past",
+      "message": "Already sent the invoice to Acme this morning.",
+      "ms": 3518.659917000012,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n12",
+      "run": 1,
+      "category": "past",
+      "message": "I renewed my passport last month, finally.",
+      "ms": 3632.657250000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n13",
+      "run": 1,
+      "category": "question",
+      "message": "Should I email Sarah or just wait for her to reply?",
+      "ms": 3705.930500000002,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n14",
+      "run": 1,
+      "category": "question",
+      "message": "What's the best way to back up a Postgres database?",
+      "ms": 3694.7987500000017,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n15",
+      "run": 1,
+      "category": "someone else",
+      "message": "Sarah said she'll send the deck on Friday.",
+      "ms": 5331.577833999996,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n16",
+      "run": 1,
+      "category": "someone else",
+      "message": "The landlord is supposed to fix the heating next week.",
+      "ms": 3858.176959000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n17",
+      "run": 1,
+      "category": "chit-chat",
+      "message": "thanks, that worked!",
+      "ms": 4185.593207999991,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n18",
+      "run": 1,
+      "category": "chit-chat",
+      "message": "lol yeah the build is slow today",
+      "ms": 3723.6255840000085,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n19",
+      "run": 1,
+      "category": "chit-chat",
+      "message": "Why do I always have to be the one who fixes the printer?",
+      "ms": 4065.5630419999943,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n20",
+      "run": 1,
+      "category": "pasted",
+      "message": "Here's the error I'm getting:\n```\nTypeError: Cannot read properties of undefined (reading 'id')\n    at renderTask (main.ts:212:18)\n    at refresh (main.ts:558:5)\n// TODO: handle the null task case\n```",
+      "ms": 4821.451375000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n21",
+      "run": 1,
+      "category": "pasted",
+      "message": "npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory.\nnpm notice New major version of npm available! 10.9.2 -> 11.19.1\nnpm notice To update run: npm install -g npm@11.19.1",
+      "ms": 6125.004624999987,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n22",
+      "run": 1,
+      "category": "pasted",
+      "message": "The README says to run `pnpm install` and then `pnpm dev` before opening a PR.",
+      "ms": 4762.749208000008,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a01",
+      "run": 1,
+      "category": "Claude's own actions",
+      "message": "I'll run the test suite now and report back.",
+      "ms": 3635.2331669999985,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a02",
+      "run": 1,
+      "category": "Claude's own actions",
+      "message": "Let me check the logs first.",
+      "ms": 3544.7184169999964,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a03",
+      "run": 1,
+      "category": "Claude's own actions",
+      "message": "Done — the migration ran cleanly. I've also updated the docs.",
+      "ms": 3958.035208000001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a04",
+      "run": 1,
+      "category": "Claude's own actions",
+      "message": "Next I'll fix the typo on line 40 and re-run the build.",
+      "ms": 4459.712958999997,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a05",
+      "run": 1,
+      "category": "Claude hands you a task",
+      "message": "That's fixed. One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.",
+      "ms": 6512.627916000012,
+      "got": [
+        {
+          "text": "Revoke the npm token",
+          "due": null,
+          "duePhrase": null,
+          "quote": "One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a06",
+      "run": 1,
+      "category": "Claude hands you a task",
+      "message": "The tests pass now. You might want to add a regression test for this at some point.",
+      "ms": 5132.006250000006,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "l01",
+      "run": 1,
+      "category": "long",
+      "message": "We got back from Porto last night and honestly the trip was great, the food alone was worth it, and the weather held up the whole week even though the forecast said rain. The only annoying part was the airport, which took forever. Anyway, I need to cancel the hotel booking in Porto for the November trip before Thursday, since we're going to stay with friends instead. The rest of the week is pretty quiet.",
+      "ms": 5364.491624999995,
+      "got": [
+        {
+          "text": "Cancel the hotel booking in Porto for the November trip",
+          "due": "2026-09-24T09:00:00Z",
+          "duePhrase": "before Thursday",
+          "quote": "I need to cancel the hotel booking in Porto for the November trip before Thursday",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "l02",
+      "run": 1,
+      "category": "long",
+      "message": "That's the full deploy log. I need to file a bug report with Vercel about this tomorrow.",
+      "ms": 4519.295083999998,
+      "got": [
+        {
+          "text": "File a bug report with Vercel",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "I need to file a bug report with Vercel about this tomorrow.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c01",
+      "run": 2,
+      "category": "commitment",
+      "message": "I need to call the dentist to reschedule my cleaning.",
+      "ms": 5149.938458000004,
+      "got": [
+        {
+          "text": "Call the dentist to reschedule cleaning",
+          "due": null,
+          "duePhrase": null,
+          "quote": "I need to call the dentist to reschedule my cleaning.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c02",
+      "run": 2,
+      "category": "commitment",
+      "message": "Remind me to renew my passport, it expires in November.",
+      "ms": 6291.029958000014,
+      "got": [
+        {
+          "text": "Renew my passport",
+          "due": "2026-11-01T09:00:00Z",
+          "duePhrase": "November",
+          "quote": "Remind me to renew my passport, it expires in November.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c03",
+      "run": 2,
+      "category": "due",
+      "message": "I have to send the invoice to Acme by Friday.",
+      "ms": 3792.522041999997,
+      "got": [
+        {
+          "text": "Send the invoice to Acme",
+          "due": "2026-09-25T09:00:00Z",
+          "duePhrase": "Friday",
+          "quote": "I have to send the invoice to Acme by Friday.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c04",
+      "run": 2,
+      "category": "due",
+      "message": "Let me email Sarah tomorrow about the offsite.",
+      "ms": 5380.957458000004,
+      "got": [
+        {
+          "text": "Email Sarah about the offsite",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Let me email Sarah tomorrow about the offsite.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c05",
+      "run": 2,
+      "category": "commitment",
+      "message": "I should really back up my laptop this week.",
+      "ms": 4609.889249999993,
+      "got": [
+        {
+          "text": "Back up my laptop",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "this week",
+          "quote": "I should really back up my laptop this week.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c06",
+      "run": 2,
+      "category": "due",
+      "message": "Don't let me forget to pay the electricity bill before the 30th.",
+      "ms": 4490.437082999997,
+      "got": [
+        {
+          "text": "Pay the electricity bill",
+          "due": "2026-09-30T09:00:00Z",
+          "duePhrase": "before the 30th",
+          "quote": "Don't let me forget to pay the electricity bill before the 30th.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c07",
+      "run": 2,
+      "category": "due",
+      "message": "I'm going to book flights to Lisbon tonight at 9pm.",
+      "ms": 3835.561791,
+      "got": [
+        {
+          "text": "Book flights to Lisbon",
+          "due": "2026-09-21T21:00:00Z",
+          "duePhrase": "tonight at 9pm",
+          "quote": "I'm going to book flights to Lisbon tonight at 9pm.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c08",
+      "run": 2,
+      "category": "due",
+      "message": "gotta pick up the dry cleaning thursday at 2pm",
+      "ms": 4334.247374999992,
+      "got": [
+        {
+          "text": "Pick up the dry cleaning",
+          "due": "2026-09-24T14:00:00Z",
+          "duePhrase": "thursday at 2pm",
+          "quote": "gotta pick up the dry cleaning thursday at 2pm",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c09",
+      "run": 2,
+      "category": "due",
+      "message": "Need to renew the domain for stickyinc before October 3.",
+      "ms": 4111.058332999994,
+      "got": [
+        {
+          "text": "Renew the domain for stickyinc",
+          "due": "2026-10-03T09:00:00Z",
+          "duePhrase": "before October 3",
+          "quote": "Need to renew the domain for stickyinc before October 3.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c10",
+      "run": 2,
+      "category": "commitment",
+      "message": "I'll review Tom's PR after lunch.",
+      "ms": 4364.575958000001,
+      "got": [
+        {
+          "text": "Review Tom's PR",
+          "due": null,
+          "duePhrase": "after lunch",
+          "quote": "I'll review Tom's PR after lunch.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c11",
+      "run": 2,
+      "category": "due",
+      "message": "Must file the quarterly taxes by September 28.",
+      "ms": 4942.9176670000015,
+      "got": [
+        {
+          "text": "File the quarterly taxes",
+          "due": "2026-09-28T09:00:00Z",
+          "duePhrase": "September 28",
+          "quote": "Must file the quarterly taxes by September 28.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c12",
+      "run": 2,
+      "category": "due",
+      "message": "I want to call mom at 9 tonight.",
+      "ms": 4452.115417000008,
+      "got": [
+        {
+          "text": "Call mom",
+          "due": "2026-09-21T21:00:00Z",
+          "duePhrase": "9 tonight",
+          "quote": "I want to call mom at 9 tonight.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c13",
+      "run": 2,
+      "category": "commitment",
+      "message": "Note to self: cancel the gym membership.",
+      "ms": 3876.317332999999,
+      "got": [
+        {
+          "text": "Cancel the gym membership",
+          "due": null,
+          "duePhrase": null,
+          "quote": "Note to self: cancel the gym membership.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c14",
+      "run": 2,
+      "category": "due",
+      "message": "I promised Priya I'd send her the slides tomorrow at 10am.",
+      "ms": 3728.5343330000032,
+      "got": [
+        {
+          "text": "Send slides to Priya",
+          "due": "2026-09-22T10:00:00Z",
+          "duePhrase": "tomorrow at 10am",
+          "quote": "I promised Priya I'd send her the slides tomorrow at 10am.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c15",
+      "run": 2,
+      "category": "commitment",
+      "message": "I need to fix the leaking kitchen tap this weekend.",
+      "ms": 4347.948250000001,
+      "got": [
+        {
+          "text": "Fix the leaking kitchen tap",
+          "due": "2026-09-26T09:00:00Z",
+          "duePhrase": "this weekend",
+          "quote": "I need to fix the leaking kitchen tap this weekend.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "c16",
+      "run": 2,
+      "category": "commitment",
+      "message": "todo: order new printer ink",
+      "ms": 4477.609416000007,
+      "got": [
+        {
+          "text": "Order new printer ink",
+          "due": null,
+          "duePhrase": null,
+          "quote": "todo: order new printer ink",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c17",
+      "run": 2,
+      "category": "due",
+      "message": "Remind me in two hours to take the bread out of the oven.",
+      "ms": 5494.196083000003,
+      "got": [
+        {
+          "text": "Take the bread out of the oven",
+          "due": "2026-09-21T12:00:00Z",
+          "duePhrase": "in two hours",
+          "quote": "Remind me in two hours to take the bread out of the oven.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c18",
+      "run": 2,
+      "category": "due",
+      "message": "I've got to finish the grant application by end of day.",
+      "ms": 5135.6345,
+      "got": [
+        {
+          "text": "Finish the grant application",
+          "due": "2026-09-21T17:00:00Z",
+          "duePhrase": "end of day",
+          "quote": "I've got to finish the grant application by end of day.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c19",
+      "run": 2,
+      "category": "due",
+      "message": "Next Monday I need to start the onboarding docs for the new hire.",
+      "ms": 3906.527375000005,
+      "got": [
+        {
+          "text": "Start the onboarding docs for the new hire",
+          "due": "2026-09-28T09:00:00Z",
+          "duePhrase": "Next Monday",
+          "quote": "Next Monday I need to start the onboarding docs for the new hire.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "c20",
+      "run": 2,
+      "category": "due",
+      "message": "I should water the plants Wednesday morning.",
+      "ms": 4851.023667000001,
+      "got": [
+        {
+          "text": "Water the plants",
+          "due": "2026-09-23T06:00:00Z",
+          "duePhrase": "Wednesday morning",
+          "quote": "I should water the plants Wednesday morning.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "m01",
+      "run": 2,
+      "category": "multiple",
+      "message": "Before I forget: call the bank about the card, buy a birthday gift for Leo, and renew the car insurance.",
+      "ms": 9169.34491700001,
+      "got": [
+        {
+          "text": "Call the bank about the card",
+          "due": null,
+          "duePhrase": null,
+          "quote": "call the bank about the card",
+          "quoteExact": true
+        },
+        {
+          "text": "Buy a birthday gift for Leo",
+          "due": null,
+          "duePhrase": null,
+          "quote": "buy a birthday gift for Leo",
+          "quoteExact": true
+        },
+        {
+          "text": "Renew the car insurance",
+          "due": null,
+          "duePhrase": null,
+          "quote": "renew the car insurance",
+          "quoteExact": true
+        }
+      ],
+      "found": 3,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "m02",
+      "run": 2,
+      "category": "multiple",
+      "message": "Two things for tomorrow: email the landlord and book the vet.",
+      "ms": 9404.273625000002,
+      "got": [
+        {
+          "text": "Email the landlord",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Two things for tomorrow: email the landlord and book the vet.",
+          "quoteExact": true
+        },
+        {
+          "text": "Book the vet",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "Two things for tomorrow: email the landlord and book the vet.",
+          "quoteExact": true
+        }
+      ],
+      "found": 2,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 2,
+      "dueWrong": []
+    },
+    {
+      "id": "m03",
+      "run": 2,
+      "category": "multiple",
+      "message": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+      "ms": 9638.835500000001,
+      "got": [
+        {
+          "text": "Renew library books",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "This week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        },
+        {
+          "text": "Schedule the plumber",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "This week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        },
+        {
+          "text": "Call grandma",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "This week",
+          "quote": "This week I need to renew my library books, schedule the plumber, and call grandma.",
+          "quoteExact": true
+        }
+      ],
+      "found": 3,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x01",
+      "run": 2,
+      "category": "mixed",
+      "message": "I need to deploy this to staging tomorrow, can you prep the migration?",
+      "ms": 5126.95204199999,
+      "got": [
+        {
+          "text": "Deploy this to staging",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "I need to deploy this to staging tomorrow",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "x02",
+      "run": 2,
+      "category": "mixed",
+      "message": "Once this is merged I have to tell the team in #eng.",
+      "ms": 5046.271833000006,
+      "got": [
+        {
+          "text": "Tell the team in #eng",
+          "due": null,
+          "duePhrase": "once this is merged",
+          "quote": "Once this is merged I have to tell the team in #eng.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x03",
+      "run": 2,
+      "category": "mixed",
+      "message": "Can you remind me to rotate the OpenRouter key later?",
+      "ms": 4292.678709,
+      "got": [
+        {
+          "text": "Rotate the OpenRouter key",
+          "due": null,
+          "duePhrase": "later",
+          "quote": "Can you remind me to rotate the OpenRouter key later?",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "x04",
+      "run": 2,
+      "category": "mixed",
+      "message": "I'll look at the flaky test after standup tomorrow, for now just skip it.",
+      "ms": 5367.5404169999965,
+      "got": [
+        {
+          "text": "Look at the flaky test",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "after standup tomorrow",
+          "quote": "I'll look at the flaky test after standup tomorrow",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "x05",
+      "run": 2,
+      "category": "mixed",
+      "message": "don't worry about the docs, I'll write them myself this weekend",
+      "ms": 3754.887083999987,
+      "got": [
+        {
+          "text": "Write the docs",
+          "due": "2026-09-26T09:00:00Z",
+          "duePhrase": "this weekend",
+          "quote": "don't worry about the docs, I'll write them myself this weekend",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n01",
+      "run": 2,
+      "category": "request to Claude",
+      "message": "Can you refactor the auth module to use the new session store?",
+      "ms": 3980.3505830000067,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n02",
+      "run": 2,
+      "category": "request to Claude",
+      "message": "Please add a unit test for parseCommitments.",
+      "ms": 4407.069209000008,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n03",
+      "run": 2,
+      "category": "request to Claude",
+      "message": "Fix the failing build and then run the linter.",
+      "ms": 4655.85370800001,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n04",
+      "run": 2,
+      "category": "request to Claude",
+      "message": "Let's rename this variable to something clearer.",
+      "ms": 4197.416082999989,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n05",
+      "run": 2,
+      "category": "request to Claude",
+      "message": "Write me a bash script that backs up my photos.",
+      "ms": 3939.180874999991,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n06",
+      "run": 2,
+      "category": "request to Claude",
+      "message": "Go ahead and commit that.",
+      "ms": 3488.743749999994,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n07",
+      "run": 2,
+      "category": "hypothetical",
+      "message": "I could maybe learn Rust someday, who knows.",
+      "ms": 4374.132832999996,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n08",
+      "run": 2,
+      "category": "hypothetical",
+      "message": "If I had more time I'd rewrite the whole frontend.",
+      "ms": 4059.494332999995,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n09",
+      "run": 2,
+      "category": "hypothetical",
+      "message": "It would be nice to visit Japan at some point.",
+      "ms": 4223.978583999997,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n10",
+      "run": 2,
+      "category": "past",
+      "message": "I called the dentist yesterday and they moved me to Friday.",
+      "ms": 5772.761707999991,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n11",
+      "run": 2,
+      "category": "past",
+      "message": "Already sent the invoice to Acme this morning.",
+      "ms": 3397.376457999999,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n12",
+      "run": 2,
+      "category": "past",
+      "message": "I renewed my passport last month, finally.",
+      "ms": 3411.372709000003,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n13",
+      "run": 2,
+      "category": "question",
+      "message": "Should I email Sarah or just wait for her to reply?",
+      "ms": 4207.928042,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n14",
+      "run": 2,
+      "category": "question",
+      "message": "What's the best way to back up a Postgres database?",
+      "ms": 4069.6815840000054,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n15",
+      "run": 2,
+      "category": "someone else",
+      "message": "Sarah said she'll send the deck on Friday.",
+      "ms": 4730.807207999998,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n16",
+      "run": 2,
+      "category": "someone else",
+      "message": "The landlord is supposed to fix the heating next week.",
+      "ms": 4380.183625000005,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n17",
+      "run": 2,
+      "category": "chit-chat",
+      "message": "thanks, that worked!",
+      "ms": 4946.369125000012,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n18",
+      "run": 2,
+      "category": "chit-chat",
+      "message": "lol yeah the build is slow today",
+      "ms": 3401.9652910000004,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n19",
+      "run": 2,
+      "category": "chit-chat",
+      "message": "Why do I always have to be the one who fixes the printer?",
+      "ms": 3634.8059999999823,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n20",
+      "run": 2,
+      "category": "pasted",
+      "message": "Here's the error I'm getting:\n```\nTypeError: Cannot read properties of undefined (reading 'id')\n    at renderTask (main.ts:212:18)\n    at refresh (main.ts:558:5)\n// TODO: handle the null task case\n```",
+      "ms": 5707.044583999988,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n21",
+      "run": 2,
+      "category": "pasted",
+      "message": "npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory.\nnpm notice New major version of npm available! 10.9.2 -> 11.19.1\nnpm notice To update run: npm install -g npm@11.19.1",
+      "ms": 5116.800958000007,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "n22",
+      "run": 2,
+      "category": "pasted",
+      "message": "The README says to run `pnpm install` and then `pnpm dev` before opening a PR.",
+      "ms": 3849.0433750000084,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a01",
+      "run": 2,
+      "category": "Claude's own actions",
+      "message": "I'll run the test suite now and report back.",
+      "ms": 4305.715249999979,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a02",
+      "run": 2,
+      "category": "Claude's own actions",
+      "message": "Let me check the logs first.",
+      "ms": 3461.2294589999947,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a03",
+      "run": 2,
+      "category": "Claude's own actions",
+      "message": "Done — the migration ran cleanly. I've also updated the docs.",
+      "ms": 4533.008207999985,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a04",
+      "run": 2,
+      "category": "Claude's own actions",
+      "message": "Next I'll fix the typo on line 40 and re-run the build.",
+      "ms": 3735.142583000008,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a05",
+      "run": 2,
+      "category": "Claude hands you a task",
+      "message": "That's fixed. One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.",
+      "ms": 8248.581250000017,
+      "got": [
+        {
+          "text": "Revoke the npm token",
+          "due": null,
+          "duePhrase": null,
+          "quote": "One thing only you can do: revoke the npm token you pasted earlier, since it's in the chat history now.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "a06",
+      "run": 2,
+      "category": "Claude hands you a task",
+      "message": "The tests pass now. You might want to add a regression test for this at some point.",
+      "ms": 6155.825207999995,
+      "got": [],
+      "found": 0,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 0,
+      "dueWrong": []
+    },
+    {
+      "id": "l01",
+      "run": 2,
+      "category": "long",
+      "message": "We got back from Porto last night and honestly the trip was great, the food alone was worth it, and the weather held up the whole week even though the forecast said rain. The only annoying part was the airport, which took forever. Anyway, I need to cancel the hotel booking in Porto for the November trip before Thursday, since we're going to stay with friends instead. The rest of the week is pretty quiet.",
+      "ms": 4387.908250000008,
+      "got": [
+        {
+          "text": "Cancel the hotel booking in Porto for the November trip",
+          "due": "2026-09-24T09:00:00Z",
+          "duePhrase": "before Thursday",
+          "quote": "I need to cancel the hotel booking in Porto for the November trip before Thursday, since we're going to stay with friends instead",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    },
+    {
+      "id": "l02",
+      "run": 2,
+      "category": "long",
+      "message": "That's the full deploy log. I need to file a bug report with Vercel about this tomorrow.",
+      "ms": 4860.810083999997,
+      "got": [
+        {
+          "text": "File a bug report with Vercel",
+          "due": "2026-09-22T09:00:00Z",
+          "duePhrase": "tomorrow",
+          "quote": "I need to file a bug report with Vercel about this tomorrow.",
+          "quoteExact": true
+        }
+      ],
+      "found": 1,
+      "missed": [],
+      "garbage": [],
+      "dueChecked": 1,
+      "dueWrong": []
+    }
+  ]
+}

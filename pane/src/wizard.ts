@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-type StepName = "welcome" | "provider" | "claude" | "watcher" | "done";
+type StepName = "welcome" | "provider" | "claude" | "watcher" | "done" | "settings";
 const ORDER: StepName[] = ["welcome", "provider", "claude", "watcher", "done"];
 
 type Provider =
@@ -19,6 +20,11 @@ interface LLMConfig {
   api_key: string;
   base_url?: string;
   model?: string;
+}
+
+interface ModelInfo {
+  id: string;
+  name: string;
 }
 
 interface ClaudeDiff {
@@ -45,8 +51,25 @@ const state = {
   current: "welcome" as StepName,
   llm: null as LLMConfig | null,
   claudeDiff: null as ClaudeDiff | null,
-  claudeResolution: "replace" as "replace" | "skip" | "edit",
+  claudeResolution: "replace" as "replace" | "skip",
   detected: null as SubscriptionDetection | null,
+  openrouterModels: null as ModelInfo[] | null,
+  /** Opened from the pane's gear after setup: each step returns to "settings". */
+  settings: false,
+  /** file:// address of ~/.stickyinc/stickyinc.ics, for "Copy address". */
+  calendarUrl: "",
+};
+
+/** Where a step goes when it's finished: the next step, or back to settings. */
+function after(next: StepName): void {
+  goto(state.settings ? "settings" : next);
+}
+
+/** What the model box starts with, and suggests, per provider. */
+const DEFAULT_MODELS: Partial<Record<Provider, string>> = {
+  openrouter: "anthropic/claude-haiku-4.5",
+  openai: "gpt-4o-mini",
+  compat: "llama3.1",
 };
 
 function $(sel: string): HTMLElement {
@@ -71,6 +94,85 @@ function goto(step: StepName): void {
 
   if (step === "provider") void onEnterProviderStep();
   if (step === "claude") void loadClaudeDiff();
+  if (step === "settings") void loadSettings();
+}
+
+const PROVIDER_NAMES: Record<Provider, string> = {
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter",
+  openai: "OpenAI",
+  compat: "OpenAI-compatible server",
+  "claude-code": "Your Claude Code subscription",
+  codex: "Your ChatGPT subscription (Codex)",
+  gemini: "Your Gemini subscription",
+  local: "A local model",
+};
+
+interface SyncReport {
+  created: number;
+  updated: number;
+  completed: number;
+  failed: string[];
+}
+
+const IS_MAC = navigator.userAgent.includes("Mac");
+
+/** The Apple Reminders row (macOS only): whether it's on, and a button to flip it. */
+async function showRemindersSetting(note?: string): Promise<void> {
+  $("#settings-reminders-row").hidden = !IS_MAC;
+  if (!IS_MAC) return;
+  const on = await invoke<boolean>("wizard_read_reminders_sync").catch(() => false);
+  $("#settings-reminders").textContent =
+    note ?? (on ? "On: open tasks go to a StickyInc list in Reminders" : "Off");
+  $("#settings-reminders-toggle").textContent = on ? "Turn off" : "Turn on";
+}
+
+/** Turning it on syncs straight away, so the permission prompt and any problem show here. */
+async function toggleReminders(): Promise<void> {
+  const on = await invoke<boolean>("wizard_read_reminders_sync").catch(() => false);
+  await invoke("wizard_set_reminders_sync", { enabled: !on });
+  if (on) return showRemindersSetting();
+  $("#settings-reminders").textContent = "Sending your open tasks to Reminders…";
+  try {
+    const r = await invoke<SyncReport>("sync_reminders");
+    const failed = r.failed.length ? ` ${r.failed.length} couldn't be sent: ${r.failed[0]}` : "";
+    await showRemindersSetting(`On: ${r.created} task${r.created === 1 ? "" : "s"} added to a StickyInc list in Reminders.${failed}`);
+  } catch (err) {
+    await invoke("wizard_set_reminders_sync", { enabled: false });
+    await showRemindersSetting(`Couldn't turn it on. ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/** Fill in the settings overview from what's saved now. */
+async function loadSettings(): Promise<void> {
+  const llm = await invoke<LLMConfig | null>("wizard_read_llm_config").catch(() => null);
+  $("#settings-llm").textContent = llm
+    ? [PROVIDER_NAMES[llm.provider] ?? llm.provider, llm.model].filter(Boolean).join(" · ")
+    : "Not set up";
+
+  const claude = $("#settings-claude");
+  try {
+    const diff = await invoke<ClaudeDiff>("wizard_diff_claude_json");
+    claude.textContent =
+      diff.state === "same" ? "Connected"
+      : diff.state === "new" ? "Not connected"
+      : "Connected to a different StickyInc";
+  } catch (err) {
+    claude.textContent = err instanceof Error ? err.message : String(err);
+  }
+
+  await showRemindersSetting();
+
+  const calendar = await invoke<string>("calendar_file_path").catch(() => "");
+  state.calendarUrl = calendar ? `file://${calendar.startsWith("/") ? "" : "/"}${calendar.replace(/\\/g, "/")}` : "";
+  $("#settings-calendar").textContent = calendar
+    ? `Your dated tasks, in ${calendar}. Subscribe to it in Apple Calendar, or import it elsewhere.`
+    : "Unavailable";
+
+  const watching = await invoke<boolean>("wizard_read_watcher_enabled").catch(() => false);
+  $("#settings-watcher").textContent = watching
+    ? "On: listening to Claude Code for commitments"
+    : "Off";
 }
 
 /* ─── provider step: subscription detection + BYOK toggle ──────────────── */
@@ -175,7 +277,7 @@ async function pickDetected(provider: Provider): Promise<void> {
   try {
     await invoke("wizard_save_llm_config", { cfg });
     state.llm = cfg;
-    goto("claude");
+    after("claude");
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
   }
@@ -192,8 +294,16 @@ function refreshProviderFields(): void {
   const p = provider();
   const baseUrl = document.querySelector<HTMLElement>('[data-field="baseUrl"]');
   const model = document.querySelector<HTMLElement>('[data-field="model"]');
+  const modelList = document.querySelector<HTMLElement>('[data-field="modelList"]');
   if (baseUrl) baseUrl.hidden = p !== "compat";
   if (model) model.hidden = p === "anthropic";
+  if (modelList) modelList.hidden = p !== "openrouter";
+
+  // Model ids don't carry across providers, so start from this one's default.
+  const modelInput = $("#llm-model") as HTMLInputElement;
+  modelInput.value = p === "openrouter" ? (DEFAULT_MODELS.openrouter ?? "") : "";
+  modelInput.placeholder = p === "openrouter" ? "Search, or type a model id" : (DEFAULT_MODELS[p] ?? "");
+  if (p === "openrouter") void loadOpenRouterModels();
 
   const note = $("#provider-note");
   const messages: Partial<Record<Provider, string>> = {
@@ -203,6 +313,45 @@ function refreshProviderFields(): void {
     compat: 'Any OpenAI-compatible endpoint works — Ollama, vLLM, Groq, Together, Fireworks.',
   };
   note.innerHTML = messages[p] ?? "";
+}
+
+async function loadOpenRouterModels(): Promise<void> {
+  const status = $("#llm-model-status");
+  if (!state.openrouterModels) {
+    status.textContent = "Loading OpenRouter's models…";
+    try {
+      state.openrouterModels = await invoke<ModelInfo[]>("wizard_list_openrouter_models");
+    } catch {
+      status.textContent = "Couldn't load OpenRouter's models. Type a model id above instead.";
+      return;
+    }
+  }
+  renderModelList();
+}
+
+/** The OpenRouter models matching `filter` (by name or id); the chosen one selected. */
+function renderModelList(filter = ""): void {
+  const models = state.openrouterModels;
+  if (!models) return;
+  const q = filter.trim().toLowerCase();
+  const shown = q
+    ? models.filter((m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
+    : models;
+  const chosen = ($("#llm-model") as HTMLInputElement).value.trim();
+  const list = $("#llm-model-list") as HTMLSelectElement;
+  list.replaceChildren(
+    ...shown.map((m) => {
+      const option = new Option(m.name, m.id, false, m.id === chosen);
+      option.title = m.id;
+      return option;
+    }),
+  );
+  // Scroll the list, not the page (scrollIntoView would move both), to the chosen model.
+  const checked = list.querySelector<HTMLOptionElement>("option:checked");
+  if (checked) list.scrollTop = checked.offsetTop - list.clientHeight / 2;
+  $("#llm-model-status").textContent = q
+    ? `${shown.length} of ${models.length} models match`
+    : `${models.length} models. Scroll, or type above to narrow.`;
 }
 
 async function validateAndContinue(): Promise<void> {
@@ -238,7 +387,7 @@ async function validateAndContinue(): Promise<void> {
     out.textContent = `Key works. Responded as ${result.model}.`;
     await invoke("wizard_save_llm_config", { cfg });
     state.llm = cfg;
-    setTimeout(() => goto("claude"), 600);
+    setTimeout(() => after("claude"), 600);
   } catch (err) {
     out.className = "validate err";
     out.textContent = err instanceof Error ? err.message : String(err);
@@ -295,12 +444,12 @@ async function loadClaudeDiff(): Promise<void> {
 
 async function registerClaude(resolution: "add" | "replace" | "skip"): Promise<void> {
   if (resolution === "skip") {
-    goto("watcher");
+    after("watcher");
     return;
   }
   try {
     await invoke("wizard_register_mcp", { resolution });
-    goto("watcher");
+    after("watcher");
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
   }
@@ -313,7 +462,7 @@ async function finish(watcherOn: boolean): Promise<void> {
   } catch {
     /* non-fatal */
   }
-  goto("done");
+  after("done");
 }
 
 /* ─── bindings ─────────────────────────────────────────────────────────── */
@@ -325,6 +474,13 @@ function bind(): void {
 
   $("#validate-next").addEventListener("click", () => void validateAndContinue());
 
+  $("#llm-model").addEventListener("input", (e) => {
+    if (provider() === "openrouter") renderModelList((e.target as HTMLInputElement).value);
+  });
+  $("#llm-model-list").addEventListener("change", (e) => {
+    ($("#llm-model") as HTMLInputElement).value = (e.target as HTMLSelectElement).value;
+  });
+
   $("#toggle-byok").addEventListener("click", (e) => {
     e.preventDefault();
     showBlock("byok");
@@ -334,15 +490,46 @@ function bind(): void {
     showBlock("detected");
   });
 
+  // In settings, "← Back" leaves the step being changed for the overview.
   document.querySelectorAll<HTMLElement>("[data-go]").forEach((el) => {
-    el.addEventListener("click", () => goto(el.dataset.go as StepName));
+    el.addEventListener("click", () => goto(state.settings ? "settings" : (el.dataset.go as StepName)));
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-settings-go]").forEach((el) => {
+    el.addEventListener("click", () => goto(el.dataset.settingsGo as StepName));
+  });
+  $("#settings-done").addEventListener("click", () => void invoke("wizard_close"));
+  $("#settings-reminders-toggle").addEventListener("click", () => void toggleReminders());
+  $("#settings-copy-pairing").addEventListener("click", async (e) => {
+    const button = e.currentTarget as HTMLButtonElement;
+    try {
+      await navigator.clipboard.writeText(await invoke<string>("clip_pairing_code"));
+      button.textContent = "Copied";
+    } catch (err) {
+      $("#settings-clipper").textContent = `Couldn't get the pairing code: ${err instanceof Error ? err.message : String(err)}`;
+    }
+    setTimeout(() => (button.textContent = "Copy pairing code"), 2000);
+  });
+  $("#settings-copy-calendar").addEventListener("click", async (e) => {
+    const button = e.currentTarget as HTMLButtonElement;
+    try {
+      await navigator.clipboard.writeText(state.calendarUrl);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Select it above";
+    }
+    setTimeout(() => (button.textContent = "Copy address"), 2000);
+  });
+  $("#settings-show-tour").addEventListener("click", () => {
+    void emit("show-tour");
+    $("#settings-tour").textContent = "Showing in the pane now: open it from the right edge.";
   });
 
   $("#claude-confirm").addEventListener("click", () => {
     const diff = state.claudeDiff;
     if (!diff) return;
     if (diff.state === "same") {
-      goto("watcher");
+      after("watcher");
       return;
     }
     void registerClaude("add");
@@ -353,9 +540,6 @@ function bind(): void {
       const r = el.dataset.resolve;
       if (r === "skip") void registerClaude("skip");
       else if (r === "replace") void registerClaude("replace");
-      else if (r === "edit") {
-        goto("provider");
-      }
     });
   });
 
@@ -378,5 +562,12 @@ function bind(): void {
   });
 }
 
-bind();
-goto("welcome");
+/** First run walks through every step; once set up, it opens on settings. */
+async function start(): Promise<void> {
+  bind();
+  state.settings = await invoke<boolean>("get_setup_complete").catch(() => false);
+  $("#dots").hidden = state.settings;
+  goto(state.settings ? "settings" : "welcome");
+}
+
+void start();

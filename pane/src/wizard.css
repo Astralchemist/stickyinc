@@ -1,12 +1,35 @@
+/* The same sticky note as the pane (style.css): paper yellow and warm ink,
+   or at night charcoal paper and yellow ink. */
 :root {
-  --paper: #f4efe4;
-  --ink: #1b1815;
-  --muted: rgba(27, 24, 21, 0.55);
-  --border: rgba(27, 24, 21, 0.12);
-  --accent: #d8663e;
-  --accent-hover: #c45a34;
-  --soft: rgba(27, 24, 21, 0.04);
-  --warn-bg: rgba(216, 102, 62, 0.08);
+  --paper: #fdf1b0;
+  --paper-top: #fff6be;
+  --paper-bottom: #fbe998;
+  --ink: #2d2a22;
+  --muted: rgba(45, 42, 34, 0.62);
+  --border: rgba(90, 70, 0, 0.22);
+  --accent: #d4452a;
+  --accent-hover: #b93a22;
+  --soft: rgba(90, 70, 0, 0.06);
+  --warn-bg: rgba(212, 69, 42, 0.09);
+  --ok-bg: rgba(48, 128, 64, 0.1);
+  --ok-ink: #1f5a32;
+  --serif: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #2f2d28;
+    --paper-top: #33312b;
+    --paper-bottom: #282722;
+    --ink: #f2e4a0;
+    --muted: rgba(242, 228, 160, 0.6);
+    --border: rgba(242, 228, 160, 0.18);
+    --accent: #ff7a5c;
+    --accent-hover: #ff9478;
+    --soft: rgba(242, 228, 160, 0.06);
+    --warn-bg: rgba(255, 122, 92, 0.13);
+    --ok-bg: rgba(110, 200, 130, 0.14);
+    --ok-ink: #9fdcae;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -29,8 +52,8 @@ html, body {
 }
 
 body {
-  background: var(--paper);
-  border-radius: 14px;
+  background: linear-gradient(180deg, var(--paper-top), var(--paper-bottom));
+  border-radius: 4px;
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -52,7 +75,9 @@ body {
   flex: 1;
   animation: fade-up 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.step[hidden] { display: none; }
+/* Classes below set display (.field is flex), which would otherwise beat
+   the hidden attribute and show every field for every provider. */
+[hidden] { display: none !important; }
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(8px); }
@@ -68,16 +93,18 @@ body {
 }
 
 h1 {
+  font-family: var(--serif);
   font-size: 36px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.03em;
   margin: 0;
   line-height: 1.1;
 }
 
 h2 {
-  font-size: 22px;
-  font-weight: 500;
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.25;
@@ -172,6 +199,21 @@ h2 {
   border-radius: 8px;
   transition: border-color 140ms ease, background 140ms ease;
 }
+.field select {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 0;
+}
+.field select option { padding: 4px 12px; }
+.field select:focus { outline: none; border-color: var(--ink); }
+.field-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
 .field input:focus {
   outline: none;
   border-color: var(--ink);
@@ -205,7 +247,7 @@ h2 {
 }
 .detected-card:hover {
   border-color: var(--accent);
-  background: rgba(216, 102, 62, 0.04);
+  background: var(--soft);
   transform: translateY(-1px);
 }
 .detected-check {
@@ -214,8 +256,8 @@ h2 {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(48, 128, 64, 0.12);
-  color: #1f5a32;
+  background: var(--ok-bg);
+  color: var(--ok-ink);
   font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
@@ -288,7 +330,7 @@ h2 {
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
 }
-.validate.ok  { background: rgba(48, 128, 64, 0.08); color: #1f5a32; }
+.validate.ok  { background: var(--ok-bg); color: var(--ok-ink); }
 .validate.err { background: var(--warn-bg); color: var(--accent-hover); }
 .validate.checking { background: var(--soft); color: var(--muted); }
 
@@ -322,8 +364,8 @@ pre#claude-diff {
   overflow-x: auto;
   color: var(--ink);
 }
-pre#claude-diff .add { background: rgba(48, 128, 64, 0.1); display: block; padding: 0 4px; }
-pre#claude-diff .del { background: rgba(216, 102, 62, 0.1); display: block; padding: 0 4px; text-decoration: line-through; }
+pre#claude-diff .add { background: var(--ok-bg); display: block; padding: 0 4px; }
+pre#claude-diff .del { background: var(--warn-bg); display: block; padding: 0 4px; text-decoration: line-through; }
 
 .conflict {
   margin-top: 6px;
@@ -353,7 +395,7 @@ button {
   font: inherit;
   cursor: pointer;
   padding: 9px 18px;
-  border-radius: 999px;
+  border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink);
@@ -374,13 +416,48 @@ button.ghost {
 }
 button.ghost:hover { color: var(--ink); background: var(--soft); }
 
+/* settings overview */
+/* Notepad rules between settings, like the pane's. */
+.settings-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--border);
+}
+.settings-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.settings-list button { white-space: nowrap; flex: none; }
+.settings-name {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.settings-value {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.settings-value.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  font-size: 12px;
+}
+
 /* progress dots */
 #dots {
   display: flex;
   justify-content: center;
   gap: 10px;
   padding: 18px 0 22px;
-  border-top: 1px solid var(--border);
+  border-top: 1px dashed var(--border);
 }
 .dot {
   width: 5px;

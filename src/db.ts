@@ -1,17 +1,49 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { join } from "node:path";
-// Built-in driver (Node 22.13+), not better-sqlite3: the pane ships this
-// server as a single bundled file run by the user's own `node`, and a native
-// addon can't be bundled or matched to an unknown Node ABI.
-import { DatabaseSync } from "node:sqlite";
+import { dirname, join, resolve } from "node:path";
+import type { Due } from "./dates.js";
+import type { Provenance } from "./provenance.js";
+import { ftsQuery, likeAnywhere, searchWords, toSqliteUtc } from "./search.js";
 import type { Task } from "./types.js";
 
-const DATA_DIR = join(homedir(), ".stickyinc");
-const DB_PATH = join(DATA_DIR, "tasks.db");
+/**
+ * ~/.stickyinc/tasks.db unless STICKYINC_DB says otherwise. The pane always
+ * reads the default, so an override is for a list the pane won't show. A
+ * leading ~ is expanded since MCP client configs don't go through a shell.
+ */
+function dbPath(): string {
+  const override = process.env.STICKYINC_DB;
+  if (!override) return join(homedir(), ".stickyinc", "tasks.db");
+  return resolve(override.replace(/^~(?=$|[\\/])/, homedir()));
+}
 
-mkdirSync(DATA_DIR, { recursive: true });
+/**
+ * The built-in driver (Node 22.13+ / 23.4+), not better-sqlite3: the pane
+ * ships this server as a single bundled file run by the user's own `node`,
+ * and a native addon can't be bundled or matched to an unknown Node ABI.
+ * Required at run time rather than imported, because a static import of a
+ * missing builtin fails while modules link — before anything could say that
+ * the fix is a newer Node.
+ */
+function loadSqlite(): typeof import("node:sqlite") {
+  try {
+    return createRequire(import.meta.url)("node:sqlite");
+  } catch {
+    console.error(
+      `StickyInc needs Node.js 22.13+ (or 23.4+) for its built-in SQLite, but this is Node ${process.version}. ` +
+        "Install a current Node from https://nodejs.org and restart your MCP client.",
+    );
+    process.exit(1);
+  }
+}
+
+const { DatabaseSync } = loadSqlite();
+
+const DB_PATH = dbPath();
+
+mkdirSync(dirname(DB_PATH), { recursive: true });
 
 export const db = new DatabaseSync(DB_PATH);
 db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;`);
@@ -44,8 +76,12 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     completed_at TEXT,
     due_at TEXT,
+    due_phrase TEXT,
     source TEXT NOT NULL DEFAULT 'claude',
-    fingerprint TEXT
+    fingerprint TEXT,
+    source_client TEXT,
+    source_ref TEXT,
+    source_excerpt TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed_at);
   CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
@@ -67,6 +103,15 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_uuid);
   CREATE INDEX IF NOT EXISTS idx_task_events_lamport ON task_events(device_id, lamport);
+
+  -- User-defined routines: a named prompt, and a hint of when to run it
+  -- (StickyInc doesn't run them itself; see docs/routines.md).
+  CREATE TABLE IF NOT EXISTS routines (
+    name TEXT PRIMARY KEY,
+    prompt TEXT NOT NULL,
+    schedule TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Phase 2: column-adding migrations. Idempotent; the column-existence check
@@ -78,6 +123,16 @@ db.exec(`
   }
   if (!cols.some((c) => c.name === "uuid")) {
     db.exec(`ALTER TABLE tasks ADD COLUMN uuid TEXT`);
+  }
+  // The words a due date was read from. Node-only: the pane never sets it.
+  if (!cols.some((c) => c.name === "due_phrase")) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN due_phrase TEXT`);
+  }
+  // Provenance, shown on hover in the pane (which adds these columns too).
+  for (const col of ["source_client", "source_ref", "source_excerpt"]) {
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN ${col} TEXT`);
+    }
   }
   // Backfill uuid for any rows created before v0.6.
   const pending = db.prepare(`SELECT id FROM tasks WHERE uuid IS NULL`).all() as {
@@ -158,7 +213,9 @@ function recordEvent(
 }
 
 const insertTaskStmt = db.prepare(
-  `INSERT INTO tasks (uuid, text, due_at, source, fingerprint) VALUES (?, ?, ?, ?, ?) RETURNING *`
+  `INSERT INTO tasks (uuid, text, due_at, due_phrase, source, fingerprint,
+                      source_client, source_ref, source_excerpt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
 );
 
 const findOpenByFingerprintStmt = db.prepare(
@@ -166,7 +223,8 @@ const findOpenByFingerprintStmt = db.prepare(
 );
 
 const countDoneTodayStmt = db.prepare(
-  `SELECT COUNT(*) as n FROM tasks WHERE completed_at IS NOT NULL AND date(completed_at) = date('now')`
+  `SELECT COUNT(*) as n FROM tasks WHERE completed_at IS NOT NULL
+     AND date(completed_at, 'localtime') = date('now', 'localtime')`
 );
 
 const selectOpenStmt = db.prepare(
@@ -210,38 +268,47 @@ export function fingerprint(text: string): string {
     .slice(0, 16);
 }
 
-export function addTask(
-  text: string,
-  dueAt: string | null = null,
-  source = "claude"
-): Task {
-  const taskUuid = randomUUID();
-  const fp = fingerprint(text);
-  return inTransaction((): Task => {
-    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as unknown as Task;
-    recordEvent("create", taskUuid, { text, due_at: dueAt, source });
-    return task;
-  });
+export interface NewTask {
+  text: string;
+  due?: Due | null;
+  /** How it was added: "claude", "calendar", "passive-extract", "quickadd". */
+  source?: string;
+  from?: Provenance;
 }
 
 /**
- * Insert only if no open task with the same fingerprint exists.
+ * Insert a task and its create event; call inside inTransaction. The event
+ * also records when a due phrase was read, so the parse can be replayed,
+ * and the provenance, so it travels with the task.
+ */
+function insertTask({ text, due = null, source = "claude", from }: NewTask): Task {
+  const taskUuid = randomUUID();
+  const row = {
+    due_at: due?.at ?? null,
+    due_phrase: due?.phrase ?? null,
+    source_client: from?.client ?? null,
+    source_ref: from?.ref ?? null,
+    source_excerpt: from?.excerpt ?? null,
+  };
+  const task = insertTaskStmt.get(
+    taskUuid, text, row.due_at, row.due_phrase, source, fingerprint(text),
+    row.source_client, row.source_ref, row.source_excerpt
+  ) as unknown as Task;
+  recordEvent("create", taskUuid, { text, ...row, due_ref: due?.ref ?? null, source });
+  return task;
+}
+
+/**
+ * Insert only if no open task with the same fingerprint exists, so the
+ * watcher and Claude hearing the same sentence make one task, not two.
  * Returns the new task, or the existing duplicate when skipped.
  * The event is only emitted on actual insertion.
  */
-export function addTaskUnique(
-  text: string,
-  dueAt: string | null = null,
-  source = "claude"
-): { task: Task; inserted: boolean } {
-  const fp = fingerprint(text);
+export function addTaskUnique(t: NewTask): { task: Task; inserted: boolean } {
   return inTransaction((): { task: Task; inserted: boolean } => {
-    const existing = findOpenByFingerprintStmt.get(fp) as Task | undefined;
+    const existing = findOpenByFingerprintStmt.get(fingerprint(t.text)) as Task | undefined;
     if (existing) return { task: existing, inserted: false };
-    const taskUuid = randomUUID();
-    const task = insertTaskStmt.get(taskUuid, text, dueAt, source, fp) as unknown as Task;
-    recordEvent("create", taskUuid, { text, due_at: dueAt, source });
-    return { task, inserted: true };
+    return { task: insertTask(t), inserted: true };
   });
 }
 
@@ -267,25 +334,135 @@ export function listArchived(hoursAgo = 24, limit = 100): Task[] {
 
 /**
  * Complete a task by numeric id (what the MCP surface accepts). Only emits
- * a `complete` event if the task was actually open before the call; no-op
- * on already-completed or nonexistent ids, matching prior behavior.
+ * a `complete` event if the task was actually open before the call.
+ * Returns null for a nonexistent id; `completed` says whether this call
+ * closed it (false: it was already done).
  */
-export function completeTask(id: number): Task | null {
-  return inTransaction((): Task | null => {
+export function completeTask(id: number): { task: Task; completed: boolean } | null {
+  return inTransaction(() => {
     const prior = completeTaskFindStmt.get(id) as
       | { uuid: string; completed_at: string | null }
       | undefined;
     if (!prior) return null;
-    if (prior.completed_at === null) {
+    const completed = prior.completed_at === null;
+    if (completed) {
       completeTaskUpdateStmt.run(id);
       recordEvent("complete", prior.uuid, null);
     }
-    return (getTaskStmt.get(id) as Task | undefined) ?? null;
+    return { task: getTaskStmt.get(id) as unknown as Task, completed };
   });
 }
 
-export function getTask(id: number): Task | null {
-  return (getTaskStmt.get(id) as Task | undefined) ?? null;
+/**
+ * Whether this Node's SQLite has FTS5 (Node 22.16+ / 24+). The search index
+ * is a TEMP table, private to this connection and never written to tasks.db:
+ * an index kept by triggers there would make every write fail ("no such
+ * module: fts5") from a Node or pane build whose SQLite lacks FTS5.
+ */
+const HAS_FTS5 = (() => {
+  try {
+    db.exec(
+      `CREATE VIRTUAL TABLE IF NOT EXISTS temp.task_search
+         USING fts5(text, excerpt, tokenize = 'unicode61 remove_diacritics 2')`
+    );
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+export interface SearchOptions {
+  /** Words to find in the task text or the words it came from. */
+  query?: string;
+  status?: "open" | "done" | "all";
+  /** Only tasks added at or after this UTC ISO 8601 instant. */
+  since?: string;
+  /** Only tasks finished at or after this UTC ISO 8601 instant. */
+  completedSince?: string;
+  limit?: number;
+}
+
+/**
+ * Search every task, open and done, by the words in its text or excerpt:
+ * best match first, or newest first when there are no words. The index is
+ * rebuilt from tasks on each search (a few ms for thousands of tasks); with
+ * no FTS5, every word just has to appear somewhere, newest first.
+ */
+export function searchTasks({
+  query = "",
+  status = "all",
+  since,
+  completedSince,
+  limit = 20,
+}: SearchOptions): Task[] {
+  const words = searchWords(query);
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+  if (status === "open") where.push("t.completed_at IS NULL");
+  if (status === "done") where.push("t.completed_at IS NOT NULL");
+  if (since) {
+    where.push("t.created_at >= ?");
+    params.push(toSqliteUtc(since));
+  }
+  if (completedSince) {
+    where.push("t.completed_at >= ?");
+    params.push(toSqliteUtc(completedSince));
+  }
+
+  if (words.length > 0 && HAS_FTS5) {
+    db.exec(
+      `DELETE FROM temp.task_search;
+       INSERT INTO temp.task_search (rowid, text, excerpt)
+         SELECT id, text, source_excerpt FROM main.tasks;`
+    );
+    const filters = where.map((w) => ` AND ${w}`).join("");
+    return db
+      .prepare(
+        `SELECT t.* FROM temp.task_search JOIN main.tasks t ON t.id = task_search.rowid
+         WHERE task_search MATCH ?${filters}
+         ORDER BY task_search.rank LIMIT ?`
+      )
+      .all(ftsQuery(words), ...params, limit) as unknown as Task[];
+  }
+
+  for (const word of words) {
+    where.push(`(t.text LIKE ? ESCAPE '\\' OR t.source_excerpt LIKE ? ESCAPE '\\')`);
+    params.push(likeAnywhere(word), likeAnywhere(word));
+  }
+  const filters = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+  return db
+    .prepare(`SELECT t.* FROM main.tasks t ${filters} ORDER BY t.created_at DESC, t.id DESC LIMIT ?`)
+    .all(...params, limit) as unknown as Task[];
+}
+
+export interface Routine {
+  name: string;
+  prompt: string;
+  /** When it's meant to run, in words ("weekdays at 8:30"); a hint, not a timer. */
+  schedule: string | null;
+  updated_at: string;
+}
+
+export function listRoutines(): Routine[] {
+  return db.prepare(`SELECT * FROM routines ORDER BY name`).all() as unknown as Routine[];
+}
+
+/** Add a routine, or replace the one with the same name. True if it was new. */
+export function saveRoutine(r: { name: string; prompt: string; schedule?: string | null }): boolean {
+  return inTransaction(() => {
+    const existed = db.prepare(`SELECT 1 FROM routines WHERE name = ?`).get(r.name) !== undefined;
+    db.prepare(
+      `INSERT INTO routines (name, prompt, schedule, updated_at) VALUES (?, ?, ?, datetime('now'))
+       ON CONFLICT (name) DO UPDATE SET prompt = excluded.prompt, schedule = excluded.schedule,
+         updated_at = excluded.updated_at`
+    ).run(r.name, r.prompt, r.schedule ?? null);
+    return !existed;
+  });
+}
+
+/** True if there was a routine by that name. */
+export function deleteRoutine(name: string): boolean {
+  return Number(db.prepare(`DELETE FROM routines WHERE name = ?`).run(name).changes) > 0;
 }
 
 export { DB_PATH, DEVICE_ID };

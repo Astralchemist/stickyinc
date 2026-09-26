@@ -20,6 +20,24 @@
         <h1>Sticky<span>Inc</span></h1>
         <span id="count"></span>
       </header>
+      <!-- First-run tour: a few tips, shown each time the pane opens until
+           finished or skipped; Settings can replay it. -->
+      <section id="tour" class="tour" aria-live="polite" hidden>
+        <div class="tour-head">
+          <span class="tour-title">Quick tour</span>
+          <span id="tour-count" class="tour-count"></span>
+        </div>
+        <p id="tour-text" class="tour-text"></p>
+        <div class="tour-actions">
+          <button id="tour-skip" class="footer-link">Skip</button>
+          <button id="tour-next" class="tour-next">Next</button>
+        </div>
+      </section>
+
+      <!-- Pages clipped from the browser (extension/), as a pile that fans
+           out on hover. A view of tasks with a URL; nothing stored apart. -->
+      <section id="stack" aria-label="Clipped from your browser" hidden></section>
+
       <ul id="tasks" aria-live="polite"></ul>
 
       <section id="recent-section" hidden>
@@ -37,8 +55,16 @@
 
       <footer>
         <span class="hint">Claude writes here. Tick to complete.</span>
-        <button id="setup-link" class="footer-link" title="Re-open setup">setup</button>
+        <button id="setup-link" class="footer-link" title="Finish setting up StickyInc">setup</button>
+        <button id="settings-link" class="footer-icon" title="Settings" aria-label="Settings" hidden>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </footer>
+
+      <div id="provenance" role="tooltip" hidden></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

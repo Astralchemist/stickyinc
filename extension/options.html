@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>StickyInc Clipper</title>
+    <style>
+      /* StickyInc's sticky note: paper yellow and warm ink, or at night
+         charcoal paper and yellow ink. */
+      :root {
+        --desk: #f5f5f1; --paper-top: #fff5b3; --paper-bottom: #fbe98f; --ink: #2d2a22; --muted: #857a55;
+        --rule: rgba(90, 70, 0, 0.3); --field: rgba(255, 255, 255, 0.55); --tape: rgba(255, 255, 255, 0.6);
+        --shadow: rgba(60, 45, 0, 0.2); --ok: #2e7d4f; --err: #c0392b; --on-ink: #fff5b3;
+        --serif: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --desk: #1b1a18; --paper-top: #302e28; --paper-bottom: #282722; --ink: #f2e4a0; --muted: #a79d78;
+          --rule: rgba(242, 228, 160, 0.25); --field: rgba(242, 228, 160, 0.06); --tape: rgba(242, 228, 160, 0.16);
+          --shadow: rgba(0, 0, 0, 0.5); --ok: #7fd49a; --err: #ff8a70; --on-ink: #1b1a18;
+          color-scheme: dark;
+        }
+      }
+      body { margin: 0; padding: 48px 16px; background: var(--desk); color: var(--ink);
+             font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      main { position: relative; max-width: 520px; margin: 0 auto; padding: 30px 28px 26px;
+             background: linear-gradient(180deg, var(--paper-top), var(--paper-bottom)); border-radius: 2px;
+             box-shadow: 0 12px 30px var(--shadow), inset 0 1px 0 var(--tape); }
+      main::before { content: ""; position: absolute; top: -10px; left: 50%; width: 96px; height: 22px;
+                     transform: translateX(-50%) rotate(-2deg); background: var(--tape); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+      h1 { font: 700 22px/1.2 var(--serif); margin: 0 0 6px; }
+      h1 span { font-style: italic; font-weight: 400; color: var(--muted); }
+      p { color: var(--ink); opacity: 0.85; margin: 8px 0; }
+      label { display: block; margin: 22px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+      input { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px dashed var(--rule); border-radius: 3px;
+              background: var(--field); color: var(--ink); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      input:focus { outline: none; border-style: solid; border-color: var(--ink); }
+      .actions { display: flex; gap: 8px; margin-top: 12px; }
+      button { font: inherit; padding: 7px 14px; border-radius: 3px; border: 1px solid var(--ink); background: var(--ink); color: var(--on-ink); cursor: pointer; }
+      button.ghost { background: transparent; color: var(--ink); border-style: dashed; border-color: var(--rule); }
+      button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+      #status { margin-top: 14px; min-height: 1.5em; }
+      .ok { color: var(--ok); }
+      .err { color: var(--err); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sticky<span>Inc</span> Clipper</h1>
+      <p>Right-click any page, link or selection, then choose <strong>Stack on StickyInc</strong> → Read, Reply, Review or Decide. It lands in the stack at the top of your StickyInc pane.</p>
+      <p>To connect, open StickyInc, click the gear at the bottom of the pane, then <strong>Browser clipper → Copy pairing code</strong>, and paste it here.</p>
+
+      <label for="code">Pairing code</label>
+      <input id="code" autocomplete="off" spellcheck="false" placeholder="Paste the code from StickyInc" />
+      <div class="actions">
+        <button id="save">Save and test</button>
+        <button id="test" class="ghost">Test connection</button>
+      </div>
+      <div id="status" role="status"></div>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,22 +1,49 @@
 import { z } from "zod";
-import { addTask } from "../db.js";
+import { addTaskUnique } from "../db.js";
+import { describeDue, resolveDue } from "../dates.js";
+import { contextSchema, fromTool, type ToolContext } from "../provenance.js";
+import { alreadyListed } from "./duplicate.js";
 
 export const addTaskSchema = {
   text: z.string().min(1).describe("The task text, e.g. 'Call the dentist'"),
   due_at: z
     .string()
     .optional()
-    .describe("Optional ISO 8601 datetime when this is due, e.g. '2026-04-24T15:00:00Z'"),
+    .describe(
+      "Optional: when it's due, in the user's own words ('tomorrow', 'Friday 3pm', 'in 2 hours', " +
+        "'next week'). Don't work out the date yourself; StickyInc does, in the user's time zone. " +
+        "Add am/pm to a bare hour. ISO 8601 works too: with Z or an offset it's exact, without one " +
+        "it's local time. No time of day means 09:00 local."
+    ),
+  context: contextSchema,
 };
 
-export async function handleAddTask(args: { text: string; due_at?: string }) {
-  const task = addTask(args.text, args.due_at ?? null);
-  const due = task.due_at ? ` (due ${task.due_at})` : "";
+export async function handleAddTask(
+  args: { text: string; due_at?: string; context?: ToolContext },
+  client: string | null
+) {
+  const due = args.due_at ? resolveDue(args.due_at) : null;
+  if (due && !due.at) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text:
+            `due_at "${args.due_at}" isn't a date StickyInc can read. Try words like ` +
+            `"Friday 5pm" or "in 3 days", or ISO 8601 (2026-04-24T17:00).`,
+        },
+      ],
+      isError: true,
+    };
+  }
+  const { task, inserted } = addTaskUnique({ text: args.text, due, from: fromTool(client, args.context) });
+  if (!inserted) return { content: [{ type: "text" as const, text: alreadyListed(task) }] };
+  const dueText = due ? `, ${describeDue(due)}` : "";
   return {
     content: [
       {
         type: "text" as const,
-        text: `Added task #${task.id}: ${task.text}${due}`,
+        text: `Added task #${task.id}: ${task.text}${dueText}`,
       },
     ],
   };

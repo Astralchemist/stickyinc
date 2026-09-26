@@ -54,4 +54,24 @@
       if (card) card.classList.add('detected');
     }
   }
+
+  // ── point the download cards at the newest release ───────────────────
+  // Asset names carry the version, so the static hrefs are pinned to a
+  // release that exists. Swap in the latest one's files if GitHub answers.
+  const dlButtons = document.querySelectorAll('.dl-btn[data-asset]');
+  if (dlButtons.length) {
+    fetch('https://api.github.com/repos/Astralchemist/stickyinc/releases/latest')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((release) => {
+        if (!release || !Array.isArray(release.assets)) return;
+        dlButtons.forEach((btn) => {
+          const asset = release.assets.find((a) => a.name.endsWith(btn.dataset.asset));
+          if (!asset) return;
+          btn.href = asset.browser_download_url;
+          const file = btn.closest('.dl-card')?.querySelector('.dl-file');
+          if (file) file.textContent = asset.name;
+        });
+      })
+      .catch(() => {});
+  }
 })();

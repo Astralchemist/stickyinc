@@ -134,10 +134,9 @@ pub struct SubscriptionDetection {
 /// Apps launched from Finder/Dock/Spotlight on macOS inherit a stripped PATH
 /// (`/usr/bin:/bin:/usr/sbin:/sbin`) that doesn't include the user's npm /
 /// Homebrew / asdf / volta dirs — so a plain PATH walk can't see `claude`,
-/// `codex`, `gemini`, or even `node` for users who installed them via tools
-/// other than the system package manager. The fallback shells out to
-/// `/bin/sh -lc 'command -v <name>'` so a real login shell sources the user's
-/// rc files and tells us where the binary actually lives.
+/// `codex`, `gemini`, or even `node`. After the PATH walk we check the usual
+/// install dirs, then (macOS) ask the user's own shell. Mirrors
+/// `whichBinary` in src/providers/which.ts.
 fn resolve_binary(name: &str) -> Option<String> {
     if let Some(path) = std::env::var_os("PATH") {
         let exts: &[&str] = if cfg!(windows) {
@@ -158,17 +157,38 @@ fn resolve_binary(name: &str) -> Option<String> {
         }
     }
 
+    #[cfg(unix)]
+    if let Some(home) = dirs::home_dir() {
+        let known = [
+            home.join(".local/bin"), // Claude Code's native installer, codex, pipx, uv
+            PathBuf::from("/opt/homebrew/bin"),
+            PathBuf::from("/usr/local/bin"),
+            home.join(".npm-global/bin"),
+            home.join(".volta/bin"),
+            home.join(".bun/bin"),
+        ];
+        for dir in known {
+            let candidate = dir.join(name);
+            if candidate.exists() {
+                return Some(candidate.to_string_lossy().to_string());
+            }
+        }
+    }
+
     #[cfg(target_os = "macos")]
     {
         return shell_resolve(name);
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = name;
         None
     }
 }
 
+/// Ask the user's own shell, as a login + interactive shell: that is what
+/// reads ~/.zprofile and ~/.zshrc, where Homebrew, nvm, asdf and installers
+/// add to PATH. (`/bin/sh -l` reads neither.) Killed after 3s so a slow or
+/// odd rc file can't hang setup.
 #[cfg(target_os = "macos")]
 fn shell_resolve(name: &str) -> Option<String> {
     if !name
@@ -177,33 +197,40 @@ fn shell_resolve(name: &str) -> Option<String> {
     {
         return None;
     }
+    use std::io::Read;
     use std::process::{Command, Stdio};
-    use std::sync::mpsc;
-    use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
-    let (tx, rx) = mpsc::channel();
-    let cmd_str = format!("command -v {}", name);
-    thread::spawn(move || {
-        let result = Command::new("/bin/sh")
-            .arg("-lc")
-            .arg(cmd_str)
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .output();
-        let _ = tx.send(result);
-    });
-    match rx.recv_timeout(Duration::from_secs(1)) {
-        Ok(Ok(out)) if out.status.success() => {
-            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if s.is_empty() {
-                None
-            } else {
-                Some(s)
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let mut child = Command::new(shell)
+        .arg("-ilc")
+        .arg(format!("command -v {}", name))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
             }
         }
-        _ => None,
     }
+    let mut out = String::new();
+    child.stdout.take()?.read_to_string(&mut out).ok()?;
+    // Interactive rc files can print banners; the answer is the last line
+    // that is an existing absolute path (aliases and functions don't count).
+    out.lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| l.starts_with('/') && std::path::Path::new(l).exists())
+        .map(str::to_string)
 }
 
 async fn probe_local_endpoint(
@@ -306,6 +333,16 @@ fn node_has_sqlite((major, minor): (u32, u32)) -> bool {
 /// registering the entry would silently fail at runtime otherwise, which is
 /// the v0.5.1 "subscription mode doesn't work" bug.
 fn mcp_default_command(app: &tauri::AppHandle) -> Result<(String, Vec<String>), String> {
+    let (node, script) = node_and_bundled_script(app, "mcp/stickyinc-mcp.mjs")?;
+    Ok((node, vec![script.to_string_lossy().to_string()]))
+}
+
+/// `node` (checked for node:sqlite support) plus the path of one of the
+/// bundled scripts shipped under `mcp/` in the app's resources.
+pub(crate) fn node_and_bundled_script(
+    app: &tauri::AppHandle,
+    resource: &str,
+) -> Result<(String, PathBuf), String> {
     let node = resolve_binary("node").ok_or_else(|| NODE_REQUIRED.to_string())?;
     match node_version(&node) {
         Some(v) if node_has_sqlite(v) => {}
@@ -314,17 +351,13 @@ fn mcp_default_command(app: &tauri::AppHandle) -> Result<(String, Vec<String>), 
         }
         None => return Err(format!("{} (couldn't run {} --version)", NODE_REQUIRED, node)),
     }
-
-    let mcp_path = app
+    let script = app
         .path()
-        .resolve("mcp/stickyinc-mcp.mjs", BaseDirectory::Resource)
+        .resolve(resource, BaseDirectory::Resource)
         .ok()
         .filter(|p| p.exists())
-        .ok_or_else(|| {
-            "StickyInc's bundled MCP server is missing from this install — reinstall the app."
-                .to_string()
-        })?;
-    Ok((node, vec![mcp_path.to_string_lossy().to_string()]))
+        .ok_or_else(|| format!("{} is missing from this install — reinstall StickyInc.", resource))?;
+    Ok((node, script))
 }
 
 fn mcp_proposed_entry(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -446,7 +479,7 @@ pub async fn wizard_validate_llm_key(cfg: LLMConfig) -> Result<ValidateResult, S
 
     match cfg.provider.as_str() {
         "anthropic" => validate_anthropic(&client, &cfg).await,
-        "openrouter" => validate_openai_compat(&client, &cfg, "https://openrouter.ai/api/v1", "anthropic/claude-3.5-haiku").await,
+        "openrouter" => validate_openai_compat(&client, &cfg, "https://openrouter.ai/api/v1", "anthropic/claude-haiku-4.5").await,
         "openai" => validate_openai_compat(&client, &cfg, "https://api.openai.com/v1", "gpt-4o-mini").await,
         "compat" => {
             let base = cfg.base_url.clone().ok_or("Base URL required for compat provider")?;
@@ -493,6 +526,51 @@ async fn validate_anthropic(client: &reqwest::Client, cfg: &LLMConfig) -> Result
     }
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+}
+
+/// OpenRouter's /models response as (id, name) pairs, sorted by name so each
+/// maker's models sit together ("Anthropic: …", "OpenAI: …").
+fn parse_openrouter_models(data: &serde_json::Value) -> Vec<ModelInfo> {
+    let mut models: Vec<ModelInfo> = data["data"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(|m| {
+                    let id = m["id"].as_str()?.to_string();
+                    let name = m["name"].as_str().unwrap_or(&id).to_string();
+                    Some(ModelInfo { id, name })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    models.sort_by_key(|m| m.name.to_lowercase());
+    models
+}
+
+/// The models the wizard's OpenRouter picker scrolls through. The list is
+/// public, so this works before the user has pasted a key.
+#[tauri::command]
+pub async fn wizard_list_openrouter_models() -> Result<Vec<ModelInfo>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let data: serde_json::Value = client
+        .get("https://openrouter.ai/api/v1/models")
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(parse_openrouter_models(&data))
+}
+
 async fn validate_openai_compat(
     client: &reqwest::Client,
     cfg: &LLMConfig,
@@ -533,13 +611,56 @@ async fn validate_openai_compat(
 }
 
 #[tauri::command]
-pub fn wizard_set_watcher_enabled(enabled: bool) -> Result<(), String> {
+pub fn wizard_set_watcher_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     let mut cfg = read_json(&setup_sentinel_path());
     if !cfg.is_object() {
         cfg = serde_json::json!({});
     }
     cfg["watcher_enabled"] = serde_json::Value::Bool(enabled);
+    write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
+    app.state::<crate::passive::PassiveWatcher>().sync(&app)
+}
+
+/// Whether the user turned on passive extraction in setup.
+/// Whether open tasks go to Apple Reminders (reminders_sync.rs). Off by
+/// default: it creates a list in the user's Reminders.
+pub fn reminders_sync_enabled() -> bool {
+    read_json(&setup_sentinel_path())
+        .get("reminders_sync")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn wizard_read_reminders_sync() -> bool {
+    reminders_sync_enabled()
+}
+
+#[tauri::command]
+pub fn wizard_set_reminders_sync(enabled: bool) -> Result<(), String> {
+    let mut cfg = read_json(&setup_sentinel_path());
+    if !cfg.is_object() {
+        cfg = serde_json::json!({});
+    }
+    cfg["reminders_sync"] = serde_json::Value::Bool(enabled);
     write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())
+}
+
+/// For the settings screen: whether passive extraction is on.
+#[tauri::command]
+pub fn wizard_read_watcher_enabled() -> bool {
+    watcher_enabled()
+}
+
+pub fn watcher_enabled() -> bool {
+    read_json(&setup_sentinel_path())
+        .get("watcher_enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+pub(crate) fn watcher_log_path() -> PathBuf {
+    stickyinc_dir().join("watcher.log")
 }
 
 #[tauri::command]
@@ -548,45 +669,12 @@ pub fn wizard_mark_complete(app: tauri::AppHandle) -> Result<(), String> {
     if !cfg.is_object() {
         cfg = serde_json::json!({});
     }
-    cfg["completed_at"] = serde_json::Value::String(chrono_like_now());
-    cfg["version"] = serde_json::json!("0.5.1");
+    cfg["completed_at"] = serde_json::Value::String(chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string());
+    cfg["version"] = serde_json::json!(app.package_info().version.to_string());
     write_json_secure(&setup_sentinel_path(), &cfg).map_err(|e| e.to_string())?;
     // Tell the main pane window to flip out of hidden/bulge mode and show the strip.
     let _ = app.emit("setup-complete", ());
     Ok(())
-}
-
-fn chrono_like_now() -> String {
-    // Avoid pulling chrono just for this — format in UTC via std.
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    // Simple YYYY-MM-DDTHH:MM:SSZ from epoch seconds.
-    // Using a tiny conversion; good enough for a timestamp.
-    let (year, month, day, hour, min, sec) = epoch_to_ymdhms(now);
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
-}
-
-fn epoch_to_ymdhms(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
-    let days = (secs / 86400) as i64;
-    let sec_of_day = (secs % 86400) as u32;
-    let hour = sec_of_day / 3600;
-    let min = (sec_of_day % 3600) / 60;
-    let sec = sec_of_day % 60;
-
-    // Algorithm from Howard Hinnant's days_from_civil, adapted.
-    let z = days + 719468;
-    let era = z.div_euclid(146097);
-    let doe = (z - era * 146097) as u32;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = (yoe as i64) + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = if month <= 2 { y + 1 } else { y };
-    (year, month, day, hour, min, sec)
 }
 
 pub fn setup_is_complete() -> bool {
@@ -628,4 +716,22 @@ pub fn wizard_close(window: tauri::Window) -> Result<(), String> {
         window.close().map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openrouter_models_are_sorted_by_name_and_skip_entries_without_an_id() {
+        let data = serde_json::json!({ "data": [
+            { "id": "openai/gpt-5", "name": "OpenAI: GPT-5" },
+            { "name": "No id, skipped" },
+            { "id": "anthropic/claude-haiku-4.5", "name": "Anthropic: Claude Haiku 4.5" },
+            { "id": "x/unnamed" },
+        ]});
+        let ids: Vec<_> = parse_openrouter_models(&data).into_iter().map(|m| m.id).collect();
+        assert_eq!(ids, ["anthropic/claude-haiku-4.5", "openai/gpt-5", "x/unnamed"]);
+        assert!(parse_openrouter_models(&serde_json::json!({})).is_empty());
+    }
 }

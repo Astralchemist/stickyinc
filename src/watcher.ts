@@ -11,6 +11,8 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { addTaskUnique } from "./db.js";
+import { resolveDue, type Due } from "./dates.js";
+import { cap, EXCERPT_MAX } from "./provenance.js";
 import { resolveLLMProvider, type LLMProvider } from "./providers/index.js";
 
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
@@ -69,6 +71,7 @@ function listJsonlFiles(): string[] {
 
 interface TranscriptLine {
   type?: string;
+  uuid?: string;
   message?: { role?: string; content?: unknown };
   timestamp?: string;
 }
@@ -91,30 +94,52 @@ function extractText(message: TranscriptLine["message"]): string {
 
 interface Commitment {
   text: string;
-  due_at: string | null;
+  due: Due | null;
+  /** The sentence it came from, per the model; checked by excerptFor. */
+  quote: string | null;
 }
 
 const EXTRACTION_SYSTEM = `You extract actionable commitments from a message.
 
 A "commitment" is something the speaker said they will or should do. Examples:
-  - "I need to call the dentist" → { "text": "Call the dentist", "due_at": null }
-  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due_at": "<tomorrow UTC>" }
+  - "I need to call the dentist" → { "text": "Call the dentist", "due": null, "quote": "I need to call the dentist" }
+  - "Let me email Sarah tomorrow" → { "text": "Email Sarah", "due": "tomorrow", "quote": "Let me email Sarah tomorrow" }
 
 Ignore:
   - Hypotheticals ("I could do X")
   - Rhetorical or past-tense references
   - Generic questions or musings
+  - Requests for the assistant to do something ("fix the build", "can you add a test"): it does those in the conversation. But "remind me to X" is a commitment to X.
+  - When the speaker is the assistant: its own next steps and progress ("I'll run the tests", "Let me check the logs"). Only something it says the user has to do themselves counts.
 
 Output ONLY a JSON object, no prose:
-{ "commitments": [{ "text": "...", "due_at": "<ISO 8601 UTC or null>" }] }
+{ "commitments": [{ "text": "...", "due": "<the words that say when, or null>", "quote": "<the sentence it came from, copied exactly>" }] }
 
-Empty array if nothing qualifies. Relative dates resolve against the "Current time" you are given. If a date has no time, default to 09:00 local → UTC.`;
+Empty array if nothing qualifies. "due" copies the speaker's date/time words ("Friday 3pm", "next week"); don't work out a date. If an hour has no am/pm, add the one the speaker means.`;
+
+/** How much of a message the model sees. */
+const MESSAGE_MAX = 4000;
+/** Of that, how much comes from the start; the rest is the end. */
+const MESSAGE_HEAD = 1000;
+
+/**
+ * A long message cut to MESSAGE_MAX characters, keeping its start and its
+ * end. A pasted log or file sits in the middle; the speaker's own words are
+ * around it — "here's the error" before, "I need to file a bug about this"
+ * after — and taking only the start lost the second kind.
+ */
+function forModel(text: string): string {
+  const chars = Array.from(text);
+  if (chars.length <= MESSAGE_MAX) return text;
+  return `${chars.slice(0, MESSAGE_HEAD).join("")}\n[…]\n${chars.slice(chars.length - (MESSAGE_MAX - MESSAGE_HEAD)).join("")}`;
+}
 
 function stripFences(s: string): string {
   return s.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 }
 
-function parseCommitments(raw: string): Commitment[] {
+/** `said` is when the message was written; relative dates are read against it. */
+function parseCommitments(raw: string, said: Date): Commitment[] {
   let cleaned = stripFences(raw);
   let obj: unknown;
   try {
@@ -135,33 +160,50 @@ function parseCommitments(raw: string): Commitment[] {
   for (const c of arr) {
     if (!c || typeof c !== "object") continue;
     const text = (c as { text?: unknown }).text;
-    const due = (c as { due_at?: unknown }).due_at;
+    const due = (c as { due?: unknown }).due;
+    const quote = (c as { quote?: unknown }).quote;
     if (typeof text === "string" && text.trim().length > 0) {
       out.push({
         text: text.trim(),
-        due_at: typeof due === "string" && due.length > 0 ? due : null,
+        due: typeof due === "string" && due.trim() ? resolveDue(due, said) : null,
+        quote: typeof quote === "string" ? quote : null,
       });
     }
   }
   return out;
 }
 
-async function extract(provider: LLMProvider, speaker: string, text: string): Promise<Commitment[]> {
+/**
+ * The words shown as a task's provenance: the model's quote if it really is
+ * in the message, so the pane never shows words nobody said; otherwise the
+ * start of the message.
+ */
+function excerptFor(message: string, quote: string | null): string | null {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  if (quote && norm(quote) && norm(message).includes(norm(quote))) return cap(quote, EXCERPT_MAX);
+  return cap(message, EXCERPT_MAX);
+}
+
+export async function extract(
+  provider: LLMProvider,
+  speaker: string,
+  text: string,
+  said: Date
+): Promise<Commitment[]> {
   if (text.trim().length < 4) return [];
-  const now = new Date().toISOString();
   const res = await provider.chat({
     system: EXTRACTION_SYSTEM,
     messages: [
       {
         role: "user",
-        content: `Current time: ${now}\nSpeaker: ${speaker}\n\nMessage:\n${text.slice(0, 4000)}`,
+        content: `Speaker: ${speaker}\n\nMessage:\n${forModel(text)}`,
       },
     ],
     response_format: "json",
     max_tokens: 400,
     temperature: 0,
   });
-  return parseCommitments(res.content);
+  return parseCommitments(res.content, said);
 }
 
 interface WatcherOptions {
@@ -173,6 +215,12 @@ interface WatcherOptions {
   includeAssistant?: boolean;
   /** Verbose logging to stderr. */
   verbose?: boolean;
+  /**
+   * Exit once the parent process is gone. The pane runs the watcher as a
+   * child; this keeps a crashed or force-quit pane from leaving an orphan
+   * that keeps sending transcripts to the LLM.
+   */
+  exitWithParent?: boolean;
 }
 
 export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
@@ -256,12 +304,28 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
         const text = extractText(obj.message);
         if (!text) continue;
 
+        // The transcript's own timestamp, not now: a backlog read after a
+        // restart must take "tomorrow" from when it was said.
+        const stamped = obj.timestamp ? new Date(obj.timestamp) : null;
+        const said = stamped && !Number.isNaN(stamped.getTime()) ? stamped : new Date();
+
         try {
-          const commitments = await extract(provider, role ?? "user", text);
+          const commitments = await extract(provider, role ?? "user", text, said);
           for (const c of commitments) {
-            const { task, inserted } = addTaskUnique(c.text, c.due_at, "passive-extract");
+            const { task, inserted } = addTaskUnique({
+              text: c.text,
+              due: c.due,
+              source: "passive-extract",
+              from: {
+                client: "Claude Code",
+                // The transcript file and message: enough to find it again.
+                ref: obj.uuid ? `${file}#${obj.uuid}` : file,
+                excerpt: excerptFor(text, c.quote),
+              },
+            });
             if (inserted && verbose) {
-              console.error(`  + #${task.id} ${c.text}${c.due_at ? ` (due ${c.due_at})` : ""}`);
+              const due = c.due ? ` (due ${c.due.at ?? "?"} from "${c.due.phrase}")` : "";
+              console.error(`  + #${task.id} ${c.text}${due}`);
             } else if (!inserted && verbose) {
               console.error(`  ~ dup #${task.id} ${c.text}`);
             }
@@ -286,7 +350,12 @@ export async function runWatcher(opts: WatcherOptions = {}): Promise<void> {
   process.on("SIGINT", onExit);
   process.on("SIGTERM", onExit);
 
+  const parentPid = process.ppid;
   while (!stopping) {
+    if (opts.exitWithParent && process.ppid !== parentPid) {
+      console.error("parent exited; watcher stopping.");
+      onExit();
+    }
     try {
       await tick();
     } catch (err) {

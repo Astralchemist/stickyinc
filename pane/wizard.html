@@ -58,8 +58,15 @@
 
           <label class="field" data-field="model" hidden>
             <span class="field-label">Model</span>
-            <input id="llm-model" type="text" placeholder="claude-haiku-4-5-20251001" />
+            <input id="llm-model" type="text" autocomplete="off" spellcheck="false" />
           </label>
+
+          <!-- OpenRouter only: its models, to scroll through; typing in the
+               model box above narrows the list. -->
+          <div class="field" data-field="modelList" hidden>
+            <select id="llm-model-list" size="5" aria-label="OpenRouter models"></select>
+            <span class="field-hint" id="llm-model-status"></span>
+          </div>
 
           <p class="provider-note" id="provider-note">
             No key? <a href="#" data-link="https://openrouter.ai/keys">Get one free from OpenRouter →</a>
@@ -97,7 +104,6 @@
           <p class="muted">An entry named <code>stickyinc</code> already exists with different values. What should we do?</p>
           <div class="actions between">
             <button class="ghost" data-resolve="skip">Skip (keep existing)</button>
-            <button class="ghost" data-resolve="edit">Edit their values</button>
             <button class="primary" data-resolve="replace">Replace</button>
           </div>
         </div>
@@ -116,8 +122,8 @@
           silently surface todos you mention in passing.
         </p>
         <p class="warning">
-          Every watched message is sent to your LLM. You can turn this off any time
-          from the pane menu.
+          Every watched message is sent to your LLM. To turn it off later, use
+          the gear at the bottom of the pane.
         </p>
 
         <div class="actions between">
@@ -129,12 +135,75 @@
         </div>
       </section>
 
+      <!-- settings: what the pane's gear opens once setup is done. Each
+           "Change" runs that one step and comes back here. -->
+      <section class="step" data-step="settings" hidden>
+        <h2>Settings</h2>
+        <p class="muted">Change one thing at a time. You'll come back here after each.</p>
+
+        <ul class="settings-list">
+          <li>
+            <div>
+              <span class="settings-name">Who writes your checkboxes</span>
+              <span class="settings-value" id="settings-llm">…</span>
+            </div>
+            <button class="ghost" data-settings-go="provider">Change</button>
+          </li>
+          <li>
+            <div>
+              <span class="settings-name">Claude Code connection</span>
+              <span class="settings-value" id="settings-claude">…</span>
+            </div>
+            <button class="ghost" data-settings-go="claude">Change</button>
+          </li>
+          <li>
+            <div>
+              <span class="settings-name">Passive extraction</span>
+              <span class="settings-value" id="settings-watcher">…</span>
+            </div>
+            <button class="ghost" data-settings-go="watcher">Change</button>
+          </li>
+          <li id="settings-reminders-row" hidden>
+            <div>
+              <span class="settings-name">Apple Reminders</span>
+              <span class="settings-value" id="settings-reminders">…</span>
+            </div>
+            <button class="ghost" id="settings-reminders-toggle">Turn on</button>
+          </li>
+          <li>
+            <div>
+              <span class="settings-name">Browser clipper</span>
+              <span class="settings-value" id="settings-clipper">Right-click any page → Stack on StickyInc. Install the extension, then paste this pairing code into it.</span>
+            </div>
+            <button class="ghost" id="settings-copy-pairing">Copy pairing code</button>
+          </li>
+          <li>
+            <div>
+              <span class="settings-name">Calendar</span>
+              <span class="settings-value selectable" id="settings-calendar">…</span>
+            </div>
+            <button class="ghost" id="settings-copy-calendar">Copy address</button>
+          </li>
+          <li>
+            <div>
+              <span class="settings-name">Quick tour</span>
+              <span class="settings-value" id="settings-tour">The four tips, shown again in the pane</span>
+            </div>
+            <button class="ghost" id="settings-show-tour">Show</button>
+          </li>
+        </ul>
+
+        <div class="actions end">
+          <button class="primary" id="settings-done">Done</button>
+        </div>
+      </section>
+
       <!-- step 5: done -->
       <section class="step" data-step="done" hidden>
         <h1>That's it.</h1>
         <p class="lede">
-          Pin this strip anywhere on your screen.<br />
-          Hover to open. Tick when done.
+          Rest your pointer on the right edge of your screen to open StickyInc.<br />
+          A quick tour is waiting there.
         </p>
         <div class="actions end">
           <button class="primary" id="finish">Let's go →</button>

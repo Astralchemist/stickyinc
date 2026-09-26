@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 const input = document.getElementById("input") as HTMLInputElement;
 const hint = document.getElementById("hint") as HTMLSpanElement;
@@ -8,7 +9,7 @@ async function close(): Promise<void> {
   try {
     await invoke("close_quickadd");
   } catch {
-    /* window already closing */
+    /* window already hidden */
   }
 }
 
@@ -39,6 +40,14 @@ input.addEventListener("keydown", (e) => {
 window.addEventListener("blur", () => {
   // Close if user clicks elsewhere
   void close();
+});
+
+// The window is kept and only hidden between uses (see quickadd_window in
+// lib.rs), so each time it's shown, start with an empty box.
+void listen("quickadd-shown", () => {
+  input.value = "";
+  hint.innerHTML = originalHint;
+  input.focus();
 });
 
 input.focus();

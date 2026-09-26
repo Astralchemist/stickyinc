@@ -23,15 +23,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
       - run: pnpm bundle
       # Run the bundle the way the pane ships it: one file, no node_modules
-      # anywhere above it, scratch HOME so tasks.db is throwaway.
+      # anywhere above it. smoke.mjs gives the server a throwaway HOME.
       - name: Smoke-test bundled server standalone
         run: |
-          mkdir -p "$RUNNER_TEMP/mcp" "$RUNNER_TEMP/home"
+          mkdir -p "$RUNNER_TEMP/mcp"
           cp dist/bundle/stickyinc-mcp.mjs "$RUNNER_TEMP/mcp/"
-          HOME="$RUNNER_TEMP/home" node smoke.mjs "$RUNNER_TEMP/mcp/stickyinc-mcp.mjs"
+          node smoke.mjs "$RUNNER_TEMP/mcp/stickyinc-mcp.mjs"
+      - name: Latency budget
+        run: node scripts/bench.mjs "$RUNNER_TEMP/mcp/stickyinc-mcp.mjs"
 
   build-pane:
     name: Pane (${{ matrix.os }})
@@ -90,6 +93,18 @@ jobs:
       - name: Install pane frontend deps
         working-directory: pane
         run: pnpm install --frozen-lockfile
+
+      # Once, on Linux: pane typecheck and the Rust unit tests (quick-add
+      # dates, fingerprints). The tests compile the app crate, which embeds
+      # the built frontend and the bundled scripts, so build those first.
+      - name: Pane typecheck and Rust unit tests
+        if: startsWith(matrix.os, 'ubuntu')
+        working-directory: pane
+        run: |
+          pnpm typecheck
+          pnpm -C .. run bundle
+          pnpm build
+          cd src-tauri && cargo test --lib
 
       # Apple code-signing env is still intentionally absent here — see
       # SIGNING.md. tauri-action treats empty APPLE_CERTIFICATE as "try to
