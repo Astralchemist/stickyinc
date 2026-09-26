@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <strong>v0.6.0</strong> · MIT · MCP-first · no backend, ever<br />
+  <strong>v0.6.1</strong> · MIT · MCP-first · no backend, ever<br />
   <em>Bring your own LLM key — or piggyback on Claude Code, ChatGPT, Gemini, or local Ollama. Zero config either way.</em>
 </p>
 
