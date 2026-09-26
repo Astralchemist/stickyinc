@@ -109,11 +109,30 @@ Ignore:
   - Hypotheticals ("I could do X")
   - Rhetorical or past-tense references
   - Generic questions or musings
+  - Requests for the assistant to do something ("fix the build", "can you add a test"): it does those in the conversation. But "remind me to X" is a commitment to X.
+  - When the speaker is the assistant: its own next steps and progress ("I'll run the tests", "Let me check the logs"). Only something it says the user has to do themselves counts.
 
 Output ONLY a JSON object, no prose:
 { "commitments": [{ "text": "...", "due": "<the words that say when, or null>", "quote": "<the sentence it came from, copied exactly>" }] }
 
 Empty array if nothing qualifies. "due" copies the speaker's date/time words ("Friday 3pm", "next week"); don't work out a date. If an hour has no am/pm, add the one the speaker means.`;
+
+/** How much of a message the model sees. */
+const MESSAGE_MAX = 4000;
+/** Of that, how much comes from the start; the rest is the end. */
+const MESSAGE_HEAD = 1000;
+
+/**
+ * A long message cut to MESSAGE_MAX characters, keeping its start and its
+ * end. A pasted log or file sits in the middle; the speaker's own words are
+ * around it — "here's the error" before, "I need to file a bug about this"
+ * after — and taking only the start lost the second kind.
+ */
+function forModel(text: string): string {
+  const chars = Array.from(text);
+  if (chars.length <= MESSAGE_MAX) return text;
+  return `${chars.slice(0, MESSAGE_HEAD).join("")}\n[…]\n${chars.slice(chars.length - (MESSAGE_MAX - MESSAGE_HEAD)).join("")}`;
+}
 
 function stripFences(s: string): string {
   return s.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
@@ -177,7 +196,7 @@ export async function extract(
     messages: [
       {
         role: "user",
-        content: `Speaker: ${speaker}\n\nMessage:\n${text.slice(0, 4000)}`,
+        content: `Speaker: ${speaker}\n\nMessage:\n${forModel(text)}`,
       },
     ],
     response_format: "json",
